@@ -18,13 +18,22 @@
   - `--symlink-install` saves you from having to rebuild every time you tweak python scripts
   - `--event-handlers console_direct+` shows console output while building (can otherwise be found in the `log` directory)
 
+##### Packages
+
+- To create a new ROS2 package (for C++ or Python) development
+
+```bash
+ros2 pkg create --build-type ament_cmake --node-name <node_name> <package_name>
+ros2 pkg create --build-type ament_python --node-name <node_name> <package_name>
+```
+
 
 
 ### Windows Subsystem for Linux (WSL)
 
 - Install WSL2 from the windows store or using the commands bellow, install Ubuntu 20.04 as the SO over the WSL overlay.
 
-```shell
+```powershell
 # Install WSL 2
 Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
 
