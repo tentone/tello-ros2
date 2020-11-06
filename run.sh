@@ -5,4 +5,5 @@ cd workspace
 . install/setup.bash
 
 # Run packages
-ros2 run control control
+cd src
+ros2 launch launch.py
