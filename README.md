@@ -4,6 +4,16 @@
 
 
 
+### Project
+
+- Project workspace is divided into sub-workspaces that contain different logic packages.
+  - gui: Contain User interface related packages
+  - driver: Access to hardware control to collect data from hardware
+  - control: Receives inputs (sensors, vision systems, etc) and defines how the drone is controlled.
+  - vision: Vision algorithms for visual information processing.
+
+
+
 ### ROS 2
 
 - Run the install script to setup the ROS 2 (Foxy Fitzroy) environment. 
