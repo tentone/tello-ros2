@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# ROS 2 Installation script for Ubuntu 20.04
-#
-# Can also be used with windows on WSL 2
+# ROS 2 Installation script
 
 # Set UTF-8 charset
 apt update && apt install locales
@@ -28,3 +26,7 @@ pip3 install -U argcomplete
 
 # Colcon build tools
 apt install python3-colcon-common-extensions
+apt install python3-rosdep2
+
+# Update ROS dep
+rosdep update
