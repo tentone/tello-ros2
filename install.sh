@@ -24,6 +24,9 @@ source /opt/ros/foxy/setup.bash
 apt install -y python3-pip
 pip3 install -U argcomplete
 
+# C++ Build tools
+apt install build-essential gdb
+
 # Colcon build tools
 apt install python3-colcon-common-extensions
 apt install python3-rosdep2
