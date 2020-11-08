@@ -15,6 +15,12 @@ def generate_launch_description():
             executable='echo',
             name='sim'
         ),
+        Node(
+            package='tello_driver',
+            namespace='tello_driver',
+            executable='tello_driver',
+            name='sim'
+        ),
         # Node(
         #     package='turtlesim',
         #     executable='mimic',
