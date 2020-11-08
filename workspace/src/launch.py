@@ -14,20 +14,5 @@ def generate_launch_description():
             namespace='echo',
             executable='echo',
             name='sim'
-        ),
-        Node(
-            package='tello_driver',
-            namespace='tello_driver',
-            executable='tello_driver',
-            name='sim'
-        ),
-        # Node(
-        #     package='turtlesim',
-        #     executable='mimic',
-        #     name='mimic',
-        #     remappings=[
-        #         ('/input/pose', '/turtlesim1/turtle1/pose'),
-        #         ('/output/cmd_vel', '/turtlesim2/turtle1/cmd_vel'),
-        #     ]
-        # )
+        )
     ])
