@@ -16,7 +16,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
 add_executable(subscriber src/subscriber.cpp)
-ament_target_dependencies(talker rclcpp std_msgs)
+ament_target_dependencies(subscriber rclcpp std_msgs)
 
 install(TARGETS subscriber DESTINATION lib/${PROJECT_NAME})
 
