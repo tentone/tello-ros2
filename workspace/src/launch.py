@@ -4,15 +4,15 @@ from launch_ros.actions import Node
 def generate_launch_description():
     return LaunchDescription([
         Node(
-            package='control',
-            namespace='control',
-            executable='control',
+            package='publisher',
+            namespace='publisher',
+            executable='publisher',
             name='sim'
         ),
         Node(
-            package='echo',
-            namespace='echo',
-            executable='echo',
+            package='subscriber',
+            namespace='subscriber',
+            executable='subscriber',
             name='sim'
         )
     ])

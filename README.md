@@ -30,7 +30,7 @@
 
 ##### Packages
 
-- To create a new ROS2 package (for C++ or Python) development
+- To create a new ROS2 package (C++ or Python) for development move to the `src` package and run
 
 ```bash
 ros2 pkg create --build-type ament_cmake --node-name <node_name> <package_name>
