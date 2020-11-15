@@ -5,14 +5,14 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='publisher',
-            namespace='publisher',
             executable='publisher',
-            name='sim'
+            namespace='/',
+            name='publisher'
         ),
         Node(
             package='subscriber',
-            namespace='subscriber',
             executable='subscriber',
-            name='sim'
+            namespace='/',
+            name='subscriber'
         )
     ])
