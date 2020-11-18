@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-
-<launch>
-    <group ns="tello">
-        <node pkg="tello_driver" type="tello.py" name="tello" output="screen" respawn="true"></node>
-    </group>
-</launch>
