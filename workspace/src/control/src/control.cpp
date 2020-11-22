@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <unistd.h>
+#include <memory>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -84,6 +85,10 @@
 #define MODE_WAYPOINT 2
 
 using std::placeholders::_1;
+using std::placeholders::_2;
+using std::placeholders::_3;
+using std::placeholders::_4;
+using std::placeholders::_5;
 
 /**
  * Get keyboard input key without blocking the application.
@@ -168,7 +173,9 @@ class ControlNode : public rclcpp::Node
 		 */
 		double manual_speed = 0.6;
 
-
+		/**
+		 * Waypoint navigation state
+		 */
 		int waypoint_state = WAYPOINT_WAITING;
 
 
@@ -211,11 +218,11 @@ class ControlNode : public rclcpp::Node
 			this->get_parameter_or<std::string>("sub_imu", param_sub_imu, "/tello/imu");
 
 			// Subscribers
-			sub_person_velocity = this->create_subscription<std_msgs::msg::String>(param_sub_velocity, 1, std::bind(&ControlNode::personVelocitySubCallback, this, _1));
-			sub_person_visible = this->create_subscription<std_msgs::msg::String>(param_sub_visible, 1, std::bind(&ControlNode::personVisibleSubCallback, this, _1));
-			sub_waypoint = this->create_subscription<std_msgs::msg::String>(param_sub_waypoint, 1, std::bind(&ControlNode::waypointSubCallback, this, _1));
-			sub_odom = this->create_subscription<std_msgs::msg::String>(param_sub_odom, 1, std::bind(&ControlNode::odomSubCallback, this, _1));
-			sub_imu = this->create_subscription<std_msgs::msg::String>(param_sub_imu, 1, std::bind(&ControlNode::imuSubCallback, this, _1));
+			sub_person_velocity = this->create_subscription<geometry_msgs::msg::Twist>(param_sub_velocity, 1, std::bind(&ControlNode::personVelocitySubCallback, this, _1));
+			sub_person_visible = this->create_subscription<std_msgs::msg::Bool>(param_sub_visible, 1, std::bind(&ControlNode::personVisibleSubCallback, this, _2));
+			sub_waypoint = this->create_subscription<geometry_msgs::msg::PointStamped>(param_sub_waypoint, 1, std::bind(&ControlNode::waypointSubCallback, this, _3));
+			sub_odom = this->create_subscription<nav_msgs::msg::Odometry>(param_sub_odom, 1, std::bind(&ControlNode::odomSubCallback, this, _4));
+			sub_imu = this->create_subscription<sensor_msgs::msg::Imu>(param_sub_imu, 1, std::bind(&ControlNode::imuSubCallback, this, _5));
  
 
 			// Publish topic parameters
@@ -229,7 +236,8 @@ class ControlNode : public rclcpp::Node
 			pub_land = this->create_publisher<std_msgs::msg::Empty>(param_pub_land, 10);
 			pub_velocity = this->create_publisher<geometry_msgs::msg::Twist>(param_pub_velocity, 10);
 		}
-
+	
+	private:
 		/**
 		 * Set the mode of the drone control.
 		 *
@@ -250,7 +258,7 @@ class ControlNode : public rclcpp::Node
 		/**
 		 * Process callback contains the person velocity.
 		 */
-		void personVelocitySubCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
+		void personVelocitySubCallback(const geometry_msgs::msg::Twist::SharedPtr msg) const
 		{
 			if(mode == MODE_FOLLOW_PERSON && person_visible)
 			{
@@ -266,7 +274,7 @@ class ControlNode : public rclcpp::Node
 		/**
 		 * Process callback indicating if the person if visible.
 		 */
-		void personVisibleSubCallback(const std_msgs::msg::Bool::SharedPtr msg)
+		void personVisibleSubCallback(const std_msgs::msg::Bool::SharedPtr msg) const
 		{
 			person_visible = msg->data;
 
@@ -281,7 +289,7 @@ class ControlNode : public rclcpp::Node
 		/**
 		 * Callback method used to read and store the odometry value.
 		 */
-		void odomSubCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
+		void odomSubCallback(const nav_msgs::msg::Odometry::SharedPtr msg) const
 		{
 			odometry = msg;
 		}
@@ -289,7 +297,7 @@ class ControlNode : public rclcpp::Node
 		/**
 		 * Callback method used to read and store the odometry value.
 		 */
-		void imuSubCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
+		void imuSubCallback(const sensor_msgs::msg::Imu::SharedPtr msg) const
 		{
 			imu = msg;
 
@@ -309,7 +317,7 @@ class ControlNode : public rclcpp::Node
 		/**
 		 * Received waypoint from external node and store it for navigation.
 		 */
-		void waypointSubCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg)
+		void waypointSubCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg) const
 		{
 			#ifdef DEBUG
 				std::cout << "Received waypoint" << std::endl;
