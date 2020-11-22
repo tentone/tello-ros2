@@ -16,6 +16,7 @@
 #include "std_msgs/msg/u_int8.hpp"
 
 #include "sensor_msgs/msg/imu.hpp"
+
 #include "nav_msgs/msg/odometry.hpp"
 
 #include "tf2/transform_datatypes.h"
@@ -483,9 +484,8 @@ class ControlNode : public rclcpp::Node
 			// Home
 			else if(key == KEY_H)
 			{
-				// TODO <DErp>
-				// geometry_msgs::msg::PointStamped msg;
-				// waypoint = msg;
+				geometry_msgs::msg::PointStamped msg;
+				waypoint->point = msg.point;
 
 				waypoint_state = WAYPOINT_HAS_WAYPOINT;
 			}
