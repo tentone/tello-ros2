@@ -19,6 +19,11 @@
 #include "nav_msgs/msg/odometry.hpp"
 
 #include "tf2/transform_datatypes.h"
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/convert.h"
+#include "tf2/LinearMath/Transform.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 #define DEBUG true
 
@@ -77,20 +82,7 @@
  */
 #define MODE_WAYPOINT 2
 
-/**
- * Odometry provided by the drone, used to obtain the position and rotation of the drone.
- */
-nav_msgs::msg::Odometry odometry;
-
-/**
- * IMU data provided by the drone.
- */
-sensor_msgs::msg::Imu imu;
-
-/**
- * Mode of the drone, defines its behavior.
- */
-int mode = MODE_MANUAL;
+using std::placeholders::_1;
 
 /**
  * Get keyboard input key without blocking the application.
@@ -140,53 +132,68 @@ int getch(int timeout)
 	return ch;
 }
 
-/**
- * Store the last key pressed when controlling the drone manually.
- *
- * Used to detect changes in key pressed.
- */
-int manual_last_key = NO_KEY;
-
-/**
- * Speed of the drone in manual control mode.
- */
-double manual_speed = 0.6;
-
-
-
-bool waypoint_state = WAYPOINT_WAITING;
-geometry_msgs::msg::PointStamped waypoint;
-
-
-/**
- * Indicates if the person is visible, if so the speed received is applied to the drone.
- */
-bool person_visible = false;
-
-/**
- * Indicates if the drone is currently moving in the direction of the person.
- */
-bool person_drone_moving = false;
-
-
 class ControlNode : public rclcpp::Node
 {
 	public:
+		/**
+		 * Odometry provided by the drone, used to obtain the position and rotation of the drone.
+		 */
+		nav_msgs::msg::Odometry::SharedPtr odometry;
+
+		/**
+		 * IMU data provided by the drone.
+		 */
+		sensor_msgs::msg::Imu::SharedPtr imu;
+
+		/**
+		 * Waypoint target message. 
+		 */
+		geometry_msgs::msg::PointStamped::SharedPtr waypoint;
+
+		/**
+		 * Mode of the drone, defines its behavior.
+		 */
+		int mode = MODE_MANUAL;
+
+		/**
+		 * Store the last key pressed when controlling the drone manually.
+		 *
+		 * Used to detect changes in key pressed.
+		 */
+		int manual_last_key = NO_KEY;
+
+		/**
+		 * Speed of the drone in manual control mode.
+		 */
+		double manual_speed = 0.6;
+
+
+		int waypoint_state = WAYPOINT_WAITING;
+
+
+		/**
+		 * Indicates if the person is visible, if so the speed received is applied to the drone.
+		 */
+		bool person_visible = false;
+
+		/**
+		 * Indicates if the drone is currently moving in the direction of the person.
+		 */
+		bool person_drone_moving = false;
+
 		rclcpp::TimerBase::SharedPtr timer;
 
-		rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_takeoff;
+		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr pub_takeoff;
 		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr pub_land;
-		rclcpp::Publisher<std_msgs::msg::Twist>::SharedPtr pub_velocity;
+		rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_velocity;
 
-		rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_person_velocity;
-		rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_person_visible;
-		rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_waypoint;
-		rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_odom;
-		rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_imu;
+		rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_person_velocity;
+		rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_person_visible;
+		rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr sub_waypoint;
+		rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom;
+		rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu;
 
-		size_t count;
-
-		ControlNode(): Node("control"), count_(0)
+		ControlNode(): Node("control")
 		{
 			timer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&ControlNode::loop, this));
 
@@ -203,12 +210,12 @@ class ControlNode : public rclcpp::Node
 			this->get_parameter_or<std::string>("sub_imu", param_sub_imu, "/tello/imu");
 
 			// Subscribers
-			sub_person_velocity = this->create_subscription<std_msgs::msg::String>(param_sub_velocity, 1, std::bind(&personVelocityCallback, this, _1));
-			sub_person_visible = this->create_subscription<std_msgs::msg::String>(param_sub_visible, 1, std::bind(&personVisibleCallback, this, _1));
-			sub_waypoint = this->create_subscription<std_msgs::msg::String>(param_sub_waypoint, 1, std::bind(&waypointSubCallback, this, _1));
-			sub_odom = this->create_subscription<std_msgs::msg::String>(param_sub_odom, 1, std::bind(&odomSubCallback, this, _1));
-			sub_imu = this->create_subscription<std_msgs::msg::String>(param_sub_imu, 1, std::bind(&imuSubCallback, this, _1));
-  
+			sub_person_velocity = this->create_subscription<std_msgs::msg::String>(param_sub_velocity, 1, std::bind(&ControlNode::personVelocitySubCallback, this, _1));
+			sub_person_visible = this->create_subscription<std_msgs::msg::String>(param_sub_visible, 1, std::bind(&ControlNode::personVisibleSubCallback, this, _1));
+			sub_waypoint = this->create_subscription<std_msgs::msg::String>(param_sub_waypoint, 1, std::bind(&ControlNode::waypointSubCallback, this, _1));
+			sub_odom = this->create_subscription<std_msgs::msg::String>(param_sub_odom, 1, std::bind(&ControlNode::odomSubCallback, this, _1));
+			sub_imu = this->create_subscription<std_msgs::msg::String>(param_sub_imu, 1, std::bind(&ControlNode::imuSubCallback, this, _1));
+ 
 
 			// Publish topic parameters
 			std::string param_pub_velocity, param_pub_takeoff, param_pub_land;
@@ -217,9 +224,9 @@ class ControlNode : public rclcpp::Node
 			this->get_parameter_or<std::string>("pub_velocity", param_pub_velocity, "/tello/cmd_vel");
 
 			// Publishers
-			pub_takeoff = node.advertise<std_msgs/msg::Empty>(param_pub_takeoff, 10);
-			pub_land = node.advertise<std_msgs/msg::Empty>(param_pub_land, 10);
-			pub_velocity = node.advertise<geometry_msgs::msg::Twist>(param_pub_velocity, 10);
+			pub_takeoff = this->create_publisher<std_msgs::msg::Empty>(param_pub_takeoff, 10);
+			pub_land = this->create_publisher<std_msgs::msg::Empty>(param_pub_land, 10);
+			pub_velocity = this->create_publisher<geometry_msgs::msg::Twist>(param_pub_velocity, 10);
 		}
 
 		/**
@@ -242,11 +249,15 @@ class ControlNode : public rclcpp::Node
 		/**
 		 * Process callback contains the person velocity.
 		 */
-		void personVelocityCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
+		void personVelocitySubCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
 		{
 			if(mode == MODE_FOLLOW_PERSON && person_visible)
 			{
-				pub_velocity->publish(msg);
+				auto vel_msg = geometry_msgs::msg::Twist();
+				vel_msg.linear = msg->linear;
+				vel_msg.angular = msg->angular;
+				pub_velocity->publish(vel_msg);
+
 				person_drone_moving = true;
 			}
 		}
@@ -254,9 +265,9 @@ class ControlNode : public rclcpp::Node
 		/**
 		 * Process callback indicating if the person if visible.
 		 */
-		void personVisibleCallback(const std_msgs::msg::Bool::SharedPtr msg)
+		void personVisibleSubCallback(const std_msgs::msg::Bool::SharedPtr msg)
 		{
-			person_visible = msg.data;
+			person_visible = msg->data;
 
 			if(mode == MODE_FOLLOW_PERSON && !person_visible && person_drone_moving)
 			{
@@ -282,11 +293,11 @@ class ControlNode : public rclcpp::Node
 			imu = msg;
 
 			#ifdef DEBUG
-				tf::Quaternion quaternion;
-				tf::quaternionMsgToTF(imu.orientation, quaternion);
+				tf2::Quaternion quaternion;
+				tf2::fromMsg(imu->orientation, quaternion);
 
 				double rot_x, rot_y, rot_z;
-				tf::Matrix3x3(quaternion).getRPY(rot_x, rot_y, rot_z);
+				tf2::Matrix3x3(quaternion).getRPY(rot_x, rot_y, rot_z);
 
 				std::cout << "Rotation X: " << rot_z << std::endl;
 				std::cout << "Rotation Y: " << rot_y << std::endl;
@@ -301,9 +312,9 @@ class ControlNode : public rclcpp::Node
 		{
 			#ifdef DEBUG
 				std::cout << "Received waypoint" << std::endl;
-				std::cout << "X:" << msg.point.x << std::endl;
-				std::cout << "Y:" << msg.point.y << std::endl;
-				std::cout << "Z:" << msg.point.z << std::endl;
+				std::cout << "X:" << msg->point.x << std::endl;
+				std::cout << "Y:" << msg->point.y << std::endl;
+				std::cout << "Z:" << msg->point.z << std::endl;
 			#endif
 
 			waypoint = msg;
@@ -336,18 +347,19 @@ class ControlNode : public rclcpp::Node
 				geometry_msgs::msg::Twist msg;
 
 				// Convert quaternion to euler rotation
-				tf::Quaternion quaternion;
-				tf::quaternionMsgToTF(imu.orientation, quaternion);
+				tf2::Quaternion quaternion;
+				tf2::convert(imu->orientation, quaternion);
+
 				double rot_x, rot_y, rot_z;
-				tf::Matrix3x3(quaternion).getRPY(rot_x, rot_y, rot_z);
+				tf2::Matrix3x3(quaternion).getRPY(rot_x, rot_y, rot_z);
 
 				// Calculate angle between drone and waypoint
-				double x = waypoint.point.x - odometry.pose.pose.position.x;
-				double y = waypoint.point.y - odometry.pose.pose.position.y;
+				double x = waypoint->point.x - odometry->pose.pose.position.x;
+				double y = waypoint->point.y - odometry->pose.pose.position.y;
 				double angle_points = atan2(y, x);
 
 				// Ditance betwee points
-				double distance = sqrt(pow(odometry.pose.pose.position.x - waypoint.point.x, 2) + pow(odometry.pose.pose.position.y - waypoint.point.y, 2));
+				double distance = sqrt(pow(odometry->pose.pose.position.x - waypoint->point.x, 2) + pow(odometry->pose.pose.position.y - waypoint->point.y, 2));
 
 				// Angle diff
 				double angle_diff;
@@ -380,7 +392,7 @@ class ControlNode : public rclcpp::Node
 				}
 				else
 				{
-					waypoint_state == WAYPOINT_FINISHED;
+					waypoint_state = WAYPOINT_FINISHED;
 				}
 
 				#ifdef DEBUG
@@ -394,7 +406,7 @@ class ControlNode : public rclcpp::Node
 
 				if(waypoint_state == WAYPOINT_HAS_WAYPOINT)
 				{
-					waypoint_state == WAYPOINT_NAVIGATING;
+					waypoint_state = WAYPOINT_NAVIGATING;
 				}
 			}
 		}
@@ -471,9 +483,10 @@ class ControlNode : public rclcpp::Node
 			// Home
 			else if(key == KEY_H)
 			{
-				geometry_msgs::msg::PointStamped msg;
+				// TODO <DErp>
+				// geometry_msgs::msg::PointStamped msg;
+				// waypoint = msg;
 
-				waypoint = msg;
 				waypoint_state = WAYPOINT_HAS_WAYPOINT;
 			}
 
