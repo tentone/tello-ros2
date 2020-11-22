@@ -103,44 +103,44 @@ int mode = MODE_MANUAL;
  */
 int getch(int timeout)
 {
-    struct termios oldattr, newattr;
+	struct termios oldattr, newattr;
 
-    tcgetattr(STDIN_FILENO, &oldattr);
-    newattr = oldattr;
-    newattr.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
+	tcgetattr(STDIN_FILENO, &oldattr);
+	newattr = oldattr;
+	newattr.c_lflag &= ~(ICANON | ECHO);
+	tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
 
-    while(1)
-    {
-        fd_set set;
+	while(1)
+	{
+		fd_set set;
 
-        struct timeval tv;
-        tv.tv_sec = 0;
-        tv.tv_usec = timeout;
+		struct timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = timeout;
 
-        FD_ZERO(&set);
-        FD_SET(fileno(stdin), &set);
+		FD_ZERO(&set);
+		FD_SET(fileno(stdin), &set);
 
-        int res = select(fileno(stdin) + 1, &set, NULL, NULL, &tv);
-        if(res > 0)
-        {
-            break;
-        }
-        else
-        {
-            return NO_KEY;
-        }
-    }
+		int res = select(fileno(stdin) + 1, &set, NULL, NULL, &tv);
+		if(res > 0)
+		{
+			break;
+		}
+		else
+		{
+			return NO_KEY;
+		}
+	}
 
-    int ch = getchar();
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
+	int ch = getchar();
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
 
-    if(ch == 27 || ch == 79 || ch == 91)
-    {
-        return NO_KEY;
-    }
+	if(ch == 27 || ch == 79 || ch == 91)
+	{
+		return NO_KEY;
+	}
 
-    return ch;
+	return ch;
 }
 
 /**
@@ -162,30 +162,30 @@ double manual_speed = 0.6;
  */
 void manualControl(int key)
 {
-    if(key == NO_KEY)
-    {
-        return;
-    }
+	if(key == NO_KEY)
+	{
+		return;
+	}
 
-    // Only send data on changes
-    if(key != manual_last_key)
-    {
-        geometry_msgs::msg::Twist msg;
+	// Only send data on changes
+	if(key != manual_last_key)
+	{
+		geometry_msgs::msg::Twist msg;
 
-        if(key == KEY_UP) {msg.linear.x = manual_speed;}
-        if(key == KEY_DOWN) {msg.linear.x = -manual_speed;}
-        if(key == KEY_LEFT) {msg.linear.y = manual_speed;}
-        if(key == KEY_RIGHT) {msg.linear.y = -manual_speed;}
-        if(key == KEY_W) {msg.linear.z = manual_speed;}
-        if(key == KEY_S) {msg.linear.z = -manual_speed;}
-        if(key == KEY_A) {msg.angular.z = manual_speed;}
-        if(key == KEY_D) {msg.angular.z = -manual_speed;}
+		if(key == KEY_UP) {msg.linear.x = manual_speed;}
+		if(key == KEY_DOWN) {msg.linear.x = -manual_speed;}
+		if(key == KEY_LEFT) {msg.linear.y = manual_speed;}
+		if(key == KEY_RIGHT) {msg.linear.y = -manual_speed;}
+		if(key == KEY_W) {msg.linear.z = manual_speed;}
+		if(key == KEY_S) {msg.linear.z = -manual_speed;}
+		if(key == KEY_A) {msg.angular.z = manual_speed;}
+		if(key == KEY_D) {msg.angular.z = -manual_speed;}
 
-        pub_velocity.publish(msg);
-    }
+		pub_velocity.publish(msg);
+	}
 
-    // Store last key for diffs
-    manual_last_key = key;
+	// Store last key for diffs
+	manual_last_key = key;
 }
 
 bool waypoint_state = WAYPOINT_WAITING;
@@ -196,15 +196,15 @@ geometry_msgs::msg::PointStamped waypoint;
  */
 void waypointCallback(const geometry_msgs::msg::PointStamped &msg)
 {
-    #ifdef DEBUG
-        std::cout << "Received waypoint" << std::endl;
-        std::cout << "X:" << msg.point.x << std::endl;
-        std::cout << "Y:" << msg.point.y << std::endl;
-        std::cout << "Z:" << msg.point.z << std::endl;
-    #endif
+	#ifdef DEBUG
+		std::cout << "Received waypoint" << std::endl;
+		std::cout << "X:" << msg.point.x << std::endl;
+		std::cout << "Y:" << msg.point.y << std::endl;
+		std::cout << "Z:" << msg.point.z << std::endl;
+	#endif
 
-    waypoint = msg;
-    waypoint_state = WAYPOINT_HAS_WAYPOINT;
+	waypoint = msg;
+	waypoint_state = WAYPOINT_HAS_WAYPOINT;
 }
 
 /**
@@ -212,7 +212,7 @@ void waypointCallback(const geometry_msgs::msg::PointStamped &msg)
  */
 double dot(geometry_msgs::msg::Point a, geometry_msgs::msg::Point b)
 {
-    return a.x * b.x + a.y * b.y;
+	return a.x * b.x + a.y * b.y;
 }
 
 /**
@@ -220,7 +220,7 @@ double dot(geometry_msgs::msg::Point a, geometry_msgs::msg::Point b)
  */
 double cross(geometry_msgs::msg::Point a, geometry_msgs::msg::Point b)
 {
-    return a.x * b.y - a.y * b.x;
+	return a.x * b.y - a.y * b.x;
 }
 
 /**
@@ -228,72 +228,72 @@ double cross(geometry_msgs::msg::Point a, geometry_msgs::msg::Point b)
  */
 void waypointControl()
 {
-    if(mode == MODE_WAYPOINT && (waypoint_state == WAYPOINT_HAS_WAYPOINT || waypoint_state == WAYPOINT_NAVIGATING))
-    {
-        geometry_msgs::msg::Twist msg;
+	if(mode == MODE_WAYPOINT && (waypoint_state == WAYPOINT_HAS_WAYPOINT || waypoint_state == WAYPOINT_NAVIGATING))
+	{
+		geometry_msgs::msg::Twist msg;
 
-        // Convert quaternion to euler rotation
-        tf::Quaternion quaternion;
-        tf::quaternionMsgToTF(imu.orientation, quaternion);
-        double rot_x, rot_y, rot_z;
-        tf::Matrix3x3(quaternion).getRPY(rot_x, rot_y, rot_z);
+		// Convert quaternion to euler rotation
+		tf::Quaternion quaternion;
+		tf::quaternionMsgToTF(imu.orientation, quaternion);
+		double rot_x, rot_y, rot_z;
+		tf::Matrix3x3(quaternion).getRPY(rot_x, rot_y, rot_z);
 
-        // Calculate angle between drone and waypoint
-        double x = waypoint.point.x - odometry.pose.pose.position.x;
-        double y = waypoint.point.y - odometry.pose.pose.position.y;
-        double angle_points = atan2(y, x);
+		// Calculate angle between drone and waypoint
+		double x = waypoint.point.x - odometry.pose.pose.position.x;
+		double y = waypoint.point.y - odometry.pose.pose.position.y;
+		double angle_points = atan2(y, x);
 
-        // Ditance betwee points
-        double distance = sqrt(pow(odometry.pose.pose.position.x - waypoint.point.x, 2) + pow(odometry.pose.pose.position.y - waypoint.point.y, 2));
+		// Ditance betwee points
+		double distance = sqrt(pow(odometry.pose.pose.position.x - waypoint.point.x, 2) + pow(odometry.pose.pose.position.y - waypoint.point.y, 2));
 
-        // Angle diff
-        double angle_diff;
+		// Angle diff
+		double angle_diff;
 
-        if(angle_points < 0)
-        {
-            double a = abs(angle_points);
-            double b = abs(rot_z);
-            if(rot_z > 0) {angle_diff = a - b;}
-            else {angle_diff = a + b;}
-        }
-        else //angle_points > 0
-        {
-            double b = abs(rot_z);
-            if(rot_z > 0) {angle_diff = -angle_points - b;}
-            else {angle_diff = -angle_points + b;}
-        }
+		if(angle_points < 0)
+		{
+			double a = abs(angle_points);
+			double b = abs(rot_z);
+			if(rot_z > 0) {angle_diff = a - b;}
+			else {angle_diff = a + b;}
+		}
+		else //angle_points > 0
+		{
+			double b = abs(rot_z);
+			if(rot_z > 0) {angle_diff = -angle_points - b;}
+			else {angle_diff = -angle_points + b;}
+		}
 
-        if(angle_diff > PI) {angle_diff -= PI2;}
-        if(angle_diff < -PI) {angle_diff += PI2;}
+		if(angle_diff > PI) {angle_diff -= PI2;}
+		if(angle_diff < -PI) {angle_diff += PI2;}
 
-        if(distance > 0.2)
-        {
-            if(abs(angle_diff) < (20 * DEG_TO_RAD))
-            {
-                msg.linear.x = 0.5;
-            }
+		if(distance > 0.2)
+		{
+			if(abs(angle_diff) < (20 * DEG_TO_RAD))
+			{
+				msg.linear.x = 0.5;
+			}
 
-            msg.angular.z = -(angle_diff / PI);
-        }
-        else
-        {
-            waypoint_state == WAYPOINT_FINISHED;
-        }
+			msg.angular.z = -(angle_diff / PI);
+		}
+		else
+		{
+			waypoint_state == WAYPOINT_FINISHED;
+		}
 
-        #ifdef DEBUG
-            //std::cout << "Distance: " << distance << std::endl;
-            std::cout << "Angle Points: " << angle_points << std::endl;
-            std::cout << "Angle Drone: " << rot_z << std::endl;
-            std::cout << "Angle Diff: " << angle_diff << std::endl;
-        #endif
+		#ifdef DEBUG
+			//std::cout << "Distance: " << distance << std::endl;
+			std::cout << "Angle Points: " << angle_points << std::endl;
+			std::cout << "Angle Drone: " << rot_z << std::endl;
+			std::cout << "Angle Diff: " << angle_diff << std::endl;
+		#endif
 
-        pub_velocity.publish(msg);
+		pub_velocity.publish(msg);
 
-        if(waypoint_state == WAYPOINT_HAS_WAYPOINT)
-        {
-            waypoint_state == WAYPOINT_NAVIGATING;
-        }
-    }
+		if(waypoint_state == WAYPOINT_HAS_WAYPOINT)
+		{
+			waypoint_state == WAYPOINT_NAVIGATING;
+		}
+	}
 }
 
 /**
@@ -311,11 +311,11 @@ bool person_drone_moving = false;
  */
 void personVelocityCallback(const geometry_msgs::msg::Twist &msg)
 {
-    if(mode == MODE_FOLLOW_PERSON && person_visible)
-    {
-        pub_velocity.publish(msg);
-        person_drone_moving = true;
-    }
+	if(mode == MODE_FOLLOW_PERSON && person_visible)
+	{
+		pub_velocity.publish(msg);
+		person_drone_moving = true;
+	}
 }
 
 /**
@@ -323,14 +323,14 @@ void personVelocityCallback(const geometry_msgs::msg::Twist &msg)
  */
 void personVisibleCallback(const std_msgs::msg::Bool &msg)
 {
-    person_visible = msg.data;
+	person_visible = msg.data;
 
-    if(mode == MODE_FOLLOW_PERSON && !person_visible && person_drone_moving)
-    {
-        geometry_msgs::msg::Twist msg;
-        pub_velocity.publish(msg);
-        person_drone_moving = false;
-    }
+	if(mode == MODE_FOLLOW_PERSON && !person_visible && person_drone_moving)
+	{
+		geometry_msgs::msg::Twist msg;
+		pub_velocity.publish(msg);
+		person_drone_moving = false;
+	}
 }
 
 /**
@@ -338,7 +338,7 @@ void personVisibleCallback(const std_msgs::msg::Bool &msg)
  */
 void odomCallback(const nav_msgs::msg::Odometry &msg)
 {
-    odometry = msg;
+	odometry = msg;
 }
 
 /**
@@ -346,21 +346,19 @@ void odomCallback(const nav_msgs::msg::Odometry &msg)
  */
 void imuCallback(const sensor_msgs::msg::Imu &msg)
 {
-    imu = msg;
+	imu = msg;
 
-    #ifdef DEBUG
-        /*
-        tf::Quaternion quaternion;
-        tf::quaternionMsgToTF(imu.orientation, quaternion);
+	#ifdef DEBUG
+		tf::Quaternion quaternion;
+		tf::quaternionMsgToTF(imu.orientation, quaternion);
 
-        double rot_x, rot_y, rot_z;
-        tf::Matrix3x3(quaternion).getRPY(rot_x, rot_y, rot_z);
+		double rot_x, rot_y, rot_z;
+		tf::Matrix3x3(quaternion).getRPY(rot_x, rot_y, rot_z);
 
-        std::cout << "Rotation X: " << rot_z << std::endl;
-        std::cout << "Rotation Y: " << rot_y << std::endl;
-        std::cout << "Rotation Z: " << rot_z << std::endl;
-         */
-    #endif
+		std::cout << "Rotation X: " << rot_z << std::endl;
+		std::cout << "Rotation Y: " << rot_y << std::endl;
+		std::cout << "Rotation Z: " << rot_z << std::endl;
+	#endif
 }
 
 /**
@@ -370,110 +368,123 @@ void imuCallback(const sensor_msgs::msg::Imu &msg)
  */
 void setMode(int m)
 {
-    mode = m;
+	mode = m;
 
-    #ifdef DEBUG
-        std::cout << "Mode: " << mode << std::endl;
-    #endif
+	#ifdef DEBUG
+		std::cout << "Mode: " << mode << std::endl;
+	#endif
 
-    geometry_msgs::msg::Twist msg;
-    pub_velocity.publish(msg);
+	geometry_msgs::msg::Twist msg;
+	pub_velocity.publish(msg);
 }
 
-int main(int argc, char **argv)
+class ControlNode : public rclcpp::Node
 {
-    rclcpp::init(argc, argv);
+	public:
+		rclcpp::TimerBase::SharedPtr timer;
+		rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
+		size_t count;
 
-    // Node handler
-    rclcpp::NodeHandle node;
+		ControlNode(): Node("control"), count_(0)
+		{
+			publisher = this->create_publisher<std_msgs::msg::String>("topic", 10);
+			timer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&ControlNode::loop, this));
 
-    // Subscribe topic parameters
-    std::string param_sub_velocity, param_sub_visible;
-    node.param<std::string>("sub_person_visible", param_sub_visible, "/person/visible");
-    node.param<std::string>("sub_person_velocity", param_sub_velocity, "/person/velocity");
+			// Node handler
+			rclcpp::NodeHandle node;
 
-    std::string param_sub_waypoint;
-    node.param<std::string>("sub_waypoint", param_sub_waypoint, "/clicked_point");
+			// Subscribe topic parameters
+			std::string param_sub_velocity, param_sub_visible;
+			node.param<std::string>("sub_person_visible", param_sub_visible, "/person/visible");
+			node.param<std::string>("sub_person_velocity", param_sub_velocity, "/person/velocity");
 
-    std::string param_sub_odom, param_sub_imu;
-    node.param<std::string>("sub_odom", param_sub_odom, "/tello/odom");
-    node.param<std::string>("sub_imu", param_sub_imu, "/tello/imu");
+			std::string param_sub_waypoint;
+			node.param<std::string>("sub_waypoint", param_sub_waypoint, "/clicked_point");
 
-    // Subscribe topic
-    rclcpp::Subscriber sub_person_velocity = node.subscribe(param_sub_velocity, 1, personVelocityCallback);
-    rclcpp::Subscriber sub_person_visible = node.subscribe(param_sub_visible, 1, personVisibleCallback);
-    rclcpp::Subscriber sub_waypoint = node.subscribe(param_sub_waypoint, 1, waypointCallback);
-    rclcpp::Subscriber sub_odom = node.subscribe(param_sub_odom, 1, odomCallback);
-    rclcpp::Subscriber sub_imu = node.subscribe(param_sub_imu, 1, imuCallback);
+			std::string param_sub_odom, param_sub_imu;
+			node.param<std::string>("sub_odom", param_sub_odom, "/tello/odom");
+			node.param<std::string>("sub_imu", param_sub_imu, "/tello/imu");
 
-    // Publish topic parameters
-    std::string param_pub_velocity, param_pub_takeoff, param_pub_land;
-    node.param<std::string>("pub_takeoff", param_pub_takeoff, "/tello/takeoff");
-    node.param<std::string>("pub_land", param_pub_land, "/tello/land");
-    node.param<std::string>("pub_velocity", param_pub_velocity, "/tello/cmd_vel");
+			// Subscribe topic
+			rclcpp::Subscriber sub_person_velocity = node.subscribe(param_sub_velocity, 1, personVelocityCallback);
+			rclcpp::Subscriber sub_person_visible = node.subscribe(param_sub_visible, 1, personVisibleCallback);
+			rclcpp::Subscriber sub_waypoint = node.subscribe(param_sub_waypoint, 1, waypointCallback);
+			rclcpp::Subscriber sub_odom = node.subscribe(param_sub_odom, 1, odomCallback);
+			rclcpp::Subscriber sub_imu = node.subscribe(param_sub_imu, 1, imuCallback);
 
-    // Publish topics
-    pub_takeoff = node.advertise<std_msgs/msg::Empty>(param_pub_takeoff, 10);
-    pub_land = node.advertise<std_msgs/msg::Empty>(param_pub_land, 10);
-    pub_velocity = node.advertise<geometry_msgs::msg::Twist>(param_pub_velocity, 10);
+			// Publish topic parameters
+			std::string param_pub_velocity, param_pub_takeoff, param_pub_land;
+			node.param<std::string>("pub_takeoff", param_pub_takeoff, "/tello/takeoff");
+			node.param<std::string>("pub_land", param_pub_land, "/tello/land");
+			node.param<std::string>("pub_velocity", param_pub_velocity, "/tello/cmd_vel");
 
-    // Main loop
-    while(rclcpp::ok())
-    {
-        int key = getch(10);
+			// Publish topics
+			pub_takeoff = node.advertise<std_msgs/msg::Empty>(param_pub_takeoff, 10);
+			pub_land = node.advertise<std_msgs/msg::Empty>(param_pub_land, 10);
+			pub_velocity = node.advertise<geometry_msgs::msg::Twist>(param_pub_velocity, 10);
+	    }
 
-        if(key != NO_KEY)
-        {
-            std::cout << "Key pressed: " << key << std::endl;
-        }
+	private:
+		void loop()
+		{
+			int key = getch(10);
 
-        // Toggle person follow mode
-        if(key == KEY_NUM_1)
-        {
-            setMode(MODE_MANUAL);
-        }
-        else if(key == KEY_NUM_2)
-        {
-            setMode(MODE_FOLLOW_PERSON);
-        }
-        else if(key == KEY_NUM_3)
-        {
-            setMode(MODE_WAYPOINT);
-        }
+			if(key != NO_KEY)
+			{
+				std::cout << "Key pressed: " << key << std::endl;
+			}
 
-        // Takeoff
-        if(key == KEY_T)
-        {
-            std_msgs::msg::Empty empty;
-            pub_takeoff.publish(empty);
-        }
-        // Land
-        else if(key == KEY_L)
-        {
-            std_msgs::msg::Empty empty;
-            pub_land.publish(empty);
-        }
-        // Home
-        else if(key == KEY_H)
-        {
-            geometry_msgs::msg::PointStamped msg;
+			// Toggle person follow mode
+			if(key == KEY_NUM_1)
+			{
+				setMode(MODE_MANUAL);
+			}
+			else if(key == KEY_NUM_2)
+			{
+				setMode(MODE_FOLLOW_PERSON);
+			}
+			else if(key == KEY_NUM_3)
+			{
+				setMode(MODE_WAYPOINT);
+			}
 
-            waypoint = msg;
-            waypoint_state = WAYPOINT_HAS_WAYPOINT;
-        }
+			// Takeoff
+			if(key == KEY_T)
+			{
+				std_msgs::msg::Empty empty;
+				pub_takeoff.publish(empty);
+			}
+			// Land
+			else if(key == KEY_L)
+			{
+				std_msgs::msg::Empty empty;
+				pub_land.publish(empty);
+			}
+			// Home
+			else if(key == KEY_H)
+			{
+				geometry_msgs::msg::PointStamped msg;
 
-        // Keyboard control
-        if(mode == MODE_MANUAL)
-        {
-            manualControl(key);
-        }
-        else if(mode == MODE_WAYPOINT)
-        {
-            waypointControl();
-        }
+				waypoint = msg;
+				waypoint_state = WAYPOINT_HAS_WAYPOINT;
+			}
 
-        rclcpp::spinOnce();
-    }
+			// Keyboard control
+			if(mode == MODE_MANUAL)
+			{
+				manualControl(key);
+			}
+			else if(mode == MODE_WAYPOINT)
+			{
+				waypointControl();
+			}
+		}
+};
 
-    return 0;
+int main(int argc, char * argv[])
+{
+	rclcpp::init(argc, argv);
+	rclcpp::spin(std::make_shared<ControlNode>());
+	rclcpp::shutdown();
+	return 0;
 }
