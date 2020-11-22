@@ -194,7 +194,7 @@ geometry_msgs::msg::PointStamped waypoint;
 /**
  * Received waypoint from external node and store it for navigation.
  */
-void waypointCallback(const geometry_msgs::msg::PointStamped &msg)
+void waypointSubCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg)
 {
 	#ifdef DEBUG
 		std::cout << "Received waypoint" << std::endl;
@@ -309,7 +309,7 @@ bool person_drone_moving = false;
 /**
  * Process callback contains the person velocity.
  */
-void personVelocityCallback(const geometry_msgs::msg::Twist &msg)
+void personVelocityCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
 	if(mode == MODE_FOLLOW_PERSON && person_visible)
 	{
@@ -321,7 +321,7 @@ void personVelocityCallback(const geometry_msgs::msg::Twist &msg)
 /**
  * Process callback indicating if the person if visible.
  */
-void personVisibleCallback(const std_msgs::msg::Bool &msg)
+void personVisibleCallback(const std_msgs::msg::Bool::SharedPtr msg)
 {
 	person_visible = msg.data;
 
@@ -336,7 +336,7 @@ void personVisibleCallback(const std_msgs::msg::Bool &msg)
 /**
  * Callback method used to read and store the odometry value.
  */
-void odomCallback(const nav_msgs::msg::Odometry &msg)
+void odomSubCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
 {
 	odometry = msg;
 }
@@ -344,7 +344,7 @@ void odomCallback(const nav_msgs::msg::Odometry &msg)
 /**
  * Callback method used to read and store the odometry value.
  */
-void imuCallback(const sensor_msgs::msg::Imu &msg)
+void imuSubCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
 	imu = msg;
 
@@ -382,43 +382,50 @@ class ControlNode : public rclcpp::Node
 {
 	public:
 		rclcpp::TimerBase::SharedPtr timer;
-		rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
+
+        rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_takeoff;
+        rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr pub_land;
+        rclcpp::Publisher<std_msgs::msg::StriTwistng>::SharedPtr pub_velocity;
+
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_person_velocity;
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_person_visible;
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_waypoint;
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_odom;
+        rclcpp::Subscription<std_msgs::msg::String>::SharedPtr sub_imu;
+
 		size_t count;
 
 		ControlNode(): Node("control"), count_(0)
 		{
-			publisher = this->create_publisher<std_msgs::msg::String>("topic", 10);
 			timer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&ControlNode::loop, this));
-
-			// Node handler
-			rclcpp::NodeHandle node;
 
 			// Subscribe topic parameters
 			std::string param_sub_velocity, param_sub_visible;
-			node.param<std::string>("sub_person_visible", param_sub_visible, "/person/visible");
-			node.param<std::string>("sub_person_velocity", param_sub_velocity, "/person/velocity");
+			this->get_parameter_or<std::string>("sub_person_visible", param_sub_visible, "/person/visible");
+			this->get_parameter_or<std::string>("sub_person_velocity", param_sub_velocity, "/person/velocity");
 
 			std::string param_sub_waypoint;
-			node.param<std::string>("sub_waypoint", param_sub_waypoint, "/clicked_point");
+			this->get_parameter_or<std::string>("sub_waypoint", param_sub_waypoint, "/clicked_point");
 
 			std::string param_sub_odom, param_sub_imu;
-			node.param<std::string>("sub_odom", param_sub_odom, "/tello/odom");
-			node.param<std::string>("sub_imu", param_sub_imu, "/tello/imu");
+			this->get_parameter_or<std::string>("sub_odom", param_sub_odom, "/tello/odom");
+			this->get_parameter_or<std::string>("sub_imu", param_sub_imu, "/tello/imu");
 
-			// Subscribe topic
-			rclcpp::Subscriber sub_person_velocity = node.subscribe(param_sub_velocity, 1, personVelocityCallback);
-			rclcpp::Subscriber sub_person_visible = node.subscribe(param_sub_visible, 1, personVisibleCallback);
-			rclcpp::Subscriber sub_waypoint = node.subscribe(param_sub_waypoint, 1, waypointCallback);
-			rclcpp::Subscriber sub_odom = node.subscribe(param_sub_odom, 1, odomCallback);
-			rclcpp::Subscriber sub_imu = node.subscribe(param_sub_imu, 1, imuCallback);
+			// Subscribers
+            sub_person_velocity = this->create_subscription<std_msgs::msg::String>(param_sub_velocity, 1, std::bind(&personVelocityCallback, this, _1));
+            sub_person_visible = this->create_subscription<std_msgs::msg::String>(param_sub_visible, 1, std::bind(&personVisibleCallback, this, _1));
+            sub_waypoint = this->create_subscription<std_msgs::msg::String>(param_sub_waypoint, 1, std::bind(&waypointSubCallback, this, _1));
+            sub_odom = this->create_subscription<std_msgs::msg::String>(param_sub_odom, 1, std::bind(&odomSubCallback, this, _1));
+            sub_imu = this->create_subscription<std_msgs::msg::String>(param_sub_imu, 1, std::bind(&imuSubCallback, this, _1));
+  
 
 			// Publish topic parameters
 			std::string param_pub_velocity, param_pub_takeoff, param_pub_land;
-			node.param<std::string>("pub_takeoff", param_pub_takeoff, "/tello/takeoff");
-			node.param<std::string>("pub_land", param_pub_land, "/tello/land");
-			node.param<std::string>("pub_velocity", param_pub_velocity, "/tello/cmd_vel");
+			this->get_parameter_or<std::string>("pub_takeoff", param_pub_takeoff, "/tello/takeoff");
+			this->get_parameter_or<std::string>("pub_land", param_pub_land, "/tello/land");
+			this->get_parameter_or<std::string>("pub_velocity", param_pub_velocity, "/tello/cmd_vel");
 
-			// Publish topics
+			// Publishers
 			pub_takeoff = node.advertise<std_msgs/msg::Empty>(param_pub_takeoff, 10);
 			pub_land = node.advertise<std_msgs/msg::Empty>(param_pub_land, 10);
 			pub_velocity = node.advertise<geometry_msgs::msg::Twist>(param_pub_velocity, 10);
