@@ -17,7 +17,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 
-#include "tf2/transform_datatypes.hpp"
+#include "tf2/transform_datatypes.h"
 
 #define DEBUG true
 
@@ -382,7 +382,7 @@ void setMode(int m)
 
 int main(int argc, char **argv)
 {
-    rclcpp::init(argc, argv, "control");
+    rclcpp::init(argc, argv);
 
     // Node handler
     rclcpp::NodeHandle node;
@@ -413,8 +413,8 @@ int main(int argc, char **argv)
     node.param<std::string>("pub_velocity", param_pub_velocity, "/tello/cmd_vel");
 
     // Publish topics
-    pub_takeoff = node.advertise"std_msgs/msg::Empty>(param_pub_takeoff, 10);
-    pub_land = node.advertise"std_msgs/msg::Empty>(param_pub_land, 10);
+    pub_takeoff = node.advertise<std_msgs/msg::Empty>(param_pub_takeoff, 10);
+    pub_land = node.advertise<std_msgs/msg::Empty>(param_pub_land, 10);
     pub_velocity = node.advertise<geometry_msgs::msg::Twist>(param_pub_velocity, 10);
 
     // Main loop
