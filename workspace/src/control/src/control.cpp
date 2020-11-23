@@ -85,10 +85,6 @@
 #define MODE_WAYPOINT 2
 
 using std::placeholders::_1;
-using std::placeholders::_2;
-using std::placeholders::_3;
-using std::placeholders::_4;
-using std::placeholders::_5;
 
 /**
  * Get keyboard input key without blocking the application.
@@ -219,10 +215,10 @@ class ControlNode : public rclcpp::Node
 
 			// Subscribers
 			sub_person_velocity = this->create_subscription<geometry_msgs::msg::Twist>(param_sub_velocity, 1, std::bind(&ControlNode::personVelocitySubCallback, this, _1));
-			sub_person_visible = this->create_subscription<std_msgs::msg::Bool>(param_sub_visible, 1, std::bind(&ControlNode::personVisibleSubCallback, this, _2));
-			sub_waypoint = this->create_subscription<geometry_msgs::msg::PointStamped>(param_sub_waypoint, 1, std::bind(&ControlNode::waypointSubCallback, this, _3));
-			sub_odom = this->create_subscription<nav_msgs::msg::Odometry>(param_sub_odom, 1, std::bind(&ControlNode::odomSubCallback, this, _4));
-			sub_imu = this->create_subscription<sensor_msgs::msg::Imu>(param_sub_imu, 1, std::bind(&ControlNode::imuSubCallback, this, _5));
+			sub_person_visible = this->create_subscription<std_msgs::msg::Bool>(param_sub_visible, 1, std::bind(&ControlNode::personVisibleSubCallback, this, _1));
+			sub_waypoint = this->create_subscription<geometry_msgs::msg::PointStamped>(param_sub_waypoint, 1, std::bind(&ControlNode::waypointSubCallback, this, _1));
+			sub_odom = this->create_subscription<nav_msgs::msg::Odometry>(param_sub_odom, 1, std::bind(&ControlNode::odomSubCallback, this, _1));
+			sub_imu = this->create_subscription<sensor_msgs::msg::Imu>(param_sub_imu, 1, std::bind(&ControlNode::imuSubCallback, this, _1));
  
 
 			// Publish topic parameters
@@ -243,63 +239,63 @@ class ControlNode : public rclcpp::Node
 		 *
 		 * @param m Mode to be set.
 		 */
-		void setMode(int m)
+		void setMode(int mode)
 		{
-			mode = m;
+			this->mode = mode;
 
 			#ifdef DEBUG
-				std::cout << "Mode: " << mode << std::endl;
+				std::cout << "Mode: " << this->mode << std::endl;
 			#endif
 
 			geometry_msgs::msg::Twist msg;
-			pub_velocity->publish(msg);
+			this->pub_velocity->publish(msg);
 		}
 
 		/**
 		 * Process callback contains the person velocity.
 		 */
-		void personVelocitySubCallback(const geometry_msgs::msg::Twist::SharedPtr msg) const
+		void personVelocitySubCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
 		{
-			if(mode == MODE_FOLLOW_PERSON && person_visible)
+			if(this->mode == MODE_FOLLOW_PERSON && person_visible)
 			{
 				auto vel_msg = geometry_msgs::msg::Twist();
 				vel_msg.linear = msg->linear;
 				vel_msg.angular = msg->angular;
 				pub_velocity->publish(vel_msg);
 
-				person_drone_moving = true;
+				this->person_drone_moving = true;
 			}
 		}
 
 		/**
 		 * Process callback indicating if the person if visible.
 		 */
-		void personVisibleSubCallback(const std_msgs::msg::Bool::SharedPtr msg) const
+		void personVisibleSubCallback(const std_msgs::msg::Bool::SharedPtr msg)
 		{
-			person_visible = msg->data;
+			this->person_visible = msg->data;
 
-			if(mode == MODE_FOLLOW_PERSON && !person_visible && person_drone_moving)
+			if(this->mode == MODE_FOLLOW_PERSON && !this->person_visible && this->person_drone_moving)
 			{
 				geometry_msgs::msg::Twist msg;
-				pub_velocity->publish(msg);
-				person_drone_moving = false;
+				this->pub_velocity->publish(msg);
+				this->person_drone_moving = false;
 			}
 		}
 
 		/**
 		 * Callback method used to read and store the odometry value.
 		 */
-		void odomSubCallback(const nav_msgs::msg::Odometry::SharedPtr msg) const
+		void odomSubCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
 		{
-			odometry = msg;
+			this->odometry = msg;
 		}
 
 		/**
 		 * Callback method used to read and store the odometry value.
 		 */
-		void imuSubCallback(const sensor_msgs::msg::Imu::SharedPtr msg) const
+		void imuSubCallback(const sensor_msgs::msg::Imu::SharedPtr msg)
 		{
-			imu = msg;
+			this->imu = msg;
 
 			#ifdef DEBUG
 				tf2::Quaternion quaternion;
@@ -317,7 +313,7 @@ class ControlNode : public rclcpp::Node
 		/**
 		 * Received waypoint from external node and store it for navigation.
 		 */
-		void waypointSubCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg) const
+		void waypointSubCallback(const geometry_msgs::msg::PointStamped::SharedPtr msg)
 		{
 			#ifdef DEBUG
 				std::cout << "Received waypoint" << std::endl;
@@ -326,8 +322,8 @@ class ControlNode : public rclcpp::Node
 				std::cout << "Z:" << msg->point.z << std::endl;
 			#endif
 
-			waypoint = msg;
-			waypoint_state = WAYPOINT_HAS_WAYPOINT;
+			this->waypoint = msg;
+			this->waypoint_state = WAYPOINT_HAS_WAYPOINT;
 		}
 
 		/**
@@ -351,7 +347,7 @@ class ControlNode : public rclcpp::Node
 		 */
 		void waypointControl()
 		{
-			if(mode == MODE_WAYPOINT && (waypoint_state == WAYPOINT_HAS_WAYPOINT || waypoint_state == WAYPOINT_NAVIGATING))
+			if(this->mode == MODE_WAYPOINT && (this->waypoint_state == WAYPOINT_HAS_WAYPOINT || this->waypoint_state == WAYPOINT_NAVIGATING))
 			{
 				geometry_msgs::msg::Twist msg;
 
@@ -380,7 +376,7 @@ class ControlNode : public rclcpp::Node
 					if(rot_z > 0) {angle_diff = a - b;}
 					else {angle_diff = a + b;}
 				}
-				else //angle_points > 0
+				else if(angle_points > 0)
 				{
 					double b = abs(rot_z);
 					if(rot_z > 0) {angle_diff = -angle_points - b;}
@@ -401,7 +397,7 @@ class ControlNode : public rclcpp::Node
 				}
 				else
 				{
-					waypoint_state = WAYPOINT_FINISHED;
+					this->waypoint_state = WAYPOINT_FINISHED;
 				}
 
 				#ifdef DEBUG
@@ -411,11 +407,11 @@ class ControlNode : public rclcpp::Node
 					std::cout << "Angle Diff: " << angle_diff << std::endl;
 				#endif
 
-				pub_velocity->publish(msg);
+				this->pub_velocity->publish(msg);
 
-				if(waypoint_state == WAYPOINT_HAS_WAYPOINT)
+				if(this->waypoint_state == WAYPOINT_HAS_WAYPOINT)
 				{
-					waypoint_state = WAYPOINT_NAVIGATING;
+					this->waypoint_state = WAYPOINT_NAVIGATING;
 				}
 			}
 		}
@@ -434,7 +430,7 @@ class ControlNode : public rclcpp::Node
 			}
 
 			// Only send data on changes
-			if(key != manual_last_key)
+			if(key != this->manual_last_key)
 			{
 				geometry_msgs::msg::Twist msg;
 
@@ -447,11 +443,11 @@ class ControlNode : public rclcpp::Node
 				if(key == KEY_A) {msg.angular.z = manual_speed;}
 				if(key == KEY_D) {msg.angular.z = -manual_speed;}
 
-				pub_velocity->publish(msg);
+				this->pub_velocity->publish(msg);
 			}
 
 			// Store last key for diffs
-			manual_last_key = key;
+			this->manual_last_key = key;
 		}
 
 		void loop()
@@ -493,17 +489,16 @@ class ControlNode : public rclcpp::Node
 			else if(key == KEY_H)
 			{
 				geometry_msgs::msg::PointStamped msg;
-				waypoint->point = msg.point;
-
-				waypoint_state = WAYPOINT_HAS_WAYPOINT;
+				this->waypoint->point = msg.point;
+				this->waypoint_state = WAYPOINT_HAS_WAYPOINT;
 			}
 
 			// Keyboard control
-			if(mode == MODE_MANUAL)
+			if(this->mode == MODE_MANUAL)
 			{
 				manualControl(key);
 			}
-			else if(mode == MODE_WAYPOINT)
+			else if(this->mode == MODE_WAYPOINT)
 			{
 				waypointControl();
 			}
