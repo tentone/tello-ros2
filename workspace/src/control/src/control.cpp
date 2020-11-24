@@ -214,11 +214,11 @@ class ControlNode : public rclcpp::Node
 			this->get_parameter_or<std::string>("sub_imu", param_sub_imu, "/tello/imu");
 
 			// Subscribers
-			sub_person_velocity = this->create_subscription<geometry_msgs::msg::Twist>(param_sub_velocity, 1, std::bind(&ControlNode::personVelocitySubCallback, this, _1));
+            //sub_person_velocity = this->create_subscription<geometry_msgs::msg::Twist>(param_sub_velocity, 1, std::bind(&ControlNode::personVelocitySubCallback, this, _1));
 			sub_person_visible = this->create_subscription<std_msgs::msg::Bool>(param_sub_visible, 1, std::bind(&ControlNode::personVisibleSubCallback, this, _1));
-			sub_waypoint = this->create_subscription<geometry_msgs::msg::PointStamped>(param_sub_waypoint, 1, std::bind(&ControlNode::waypointSubCallback, this, _1));
-			sub_odom = this->create_subscription<nav_msgs::msg::Odometry>(param_sub_odom, 1, std::bind(&ControlNode::odomSubCallback, this, _1));
-			sub_imu = this->create_subscription<sensor_msgs::msg::Imu>(param_sub_imu, 1, std::bind(&ControlNode::imuSubCallback, this, _1));
+			//sub_waypoint = this->create_subscription<geometry_msgs::msg::PointStamped>(param_sub_waypoint, 1, std::bind(&ControlNode::waypointSubCallback, this, _1));
+			//sub_odom = this->create_subscription<nav_msgs::msg::Odometry>(param_sub_odom, 1, std::bind(&ControlNode::odomSubCallback, this, _1));
+			//sub_imu = this->create_subscription<sensor_msgs::msg::Imu>(param_sub_imu, 1, std::bind(&ControlNode::imuSubCallback, this, _1));
  
 
 			// Publish topic parameters
@@ -230,7 +230,7 @@ class ControlNode : public rclcpp::Node
 			// Publishers
 			pub_takeoff = this->create_publisher<std_msgs::msg::Empty>(param_pub_takeoff, 10);
 			pub_land = this->create_publisher<std_msgs::msg::Empty>(param_pub_land, 10);
-			pub_velocity = this->create_publisher<geometry_msgs::msg::Twist>(param_pub_velocity, 10);
+			// pub_velocity = this->create_publisher<geometry_msgs::msg::Twist>(param_pub_velocity, 10);
 		}
 	
 	private:
