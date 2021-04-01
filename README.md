@@ -54,6 +54,12 @@ wsl -l -v
 ```
 
 - Install a [VcXsrv Windows X Server](https://sourceforge.net/projects/vcxsrv/) to be used as a X11 display server required to run GUI applications.
+- Create a shortcut for VcXSrv with the following parameters
+
+```
+"C:\Program Files\VcXsrv\vcxsrv.exe" :0 -ac -terminate -lesspointer -multiwindow -clipboard -wgl -dpi auto
+```
+
 - To enable the access to the installed server add the display address to the `.bashrc` file
 
 ```bash

@@ -1,5 +1,0 @@
-workspace/build/
-workspace/install/
-workspace/log/
-*.pyc
-.vs/*
