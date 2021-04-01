@@ -1,10 +1,6 @@
-# Drone Visual SLAM
+# Tello SLAM
 
-- Collaborative drone based visual SLAM for mapping of indoor environments using ROS.
-
-
-
-### Project
+- DJI Tello visual SLAM for mapping of indoor environments using ROS.
 
 - Project workspace is divided into sub-workspaces that contain different logic packages.
   - gui: Contain User interface related packages

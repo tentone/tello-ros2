@@ -31,8 +31,7 @@ apt install -y python3-pip
 pip3 install -U argcomplete
 
 # Colcon build tools
-apt install -y python3-colcon-common-extensions
-apt install -y python3-rosdep2
+apt install -y python3-colcon-common-extensions python3-rosdep2
 
 # Update ROS dep
 rosdep update
@@ -56,3 +55,8 @@ mkdir build
 cd build
 cmake ..
 make install -j4
+
+# Add to bashrc
+echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
+echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
+echo "export _colcon_cd_root=~/ros2_install" >> ~/.bashrc
