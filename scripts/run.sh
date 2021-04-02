@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source the workspace
-cd workspace
+cd ../workspace
 . install/setup.bash
 
 # Run packages

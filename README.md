@@ -36,6 +36,11 @@ ros2 pkg create --build-type ament_cmake --node-name <node_name> <package_name>
 ros2 pkg create --build-type ament_python --node-name <node_name> <package_name>
 ```
 
+##### Tools
+
+- `rqt_topic` Used to monitor topics and their values in a list
+- `rviz` Visualize topics in 3D space.
+
 
 
 ### Windows Subsystem for Linux (WSL)

@@ -47,10 +47,7 @@ rosdep update
 echo " - Installing OpenCV"
 
 # Install OpenCV from source
-apt install -y cmake gcc g++
-apt install -y python3-dev python3-numpy
-apt install -y libavcodec-dev libavformat-dev libswscale-dev libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev libgtk-3-dev
-apt install -y libpng-dev libjpeg-dev libopenexr-dev libtiff-dev libwebp-dev
+apt install -y cmake gcc g++ python3-dev python3-numpy libavcodec-dev libavformat-dev libswscale-dev libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev libgtk-3-dev libpng-dev libjpeg-dev libopenexr-dev libtiff-dev libwebp-dev
 
 # Clone the repository
 cd ~
@@ -64,10 +61,15 @@ cd build
 cmake ..
 make install -j4
 
-
 echo " - Register ROS2 in .bashrc"
 
 # Add to bashrc
 echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
 echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
 echo "export _colcon_cd_root=~/ros2_install" >> ~/.bashrc
+
+echo " - Install Python dependencies"
+pip3 install catkin_pkg
+
+echo " - Install CPP dependencies"
+apt-get install ros-foxy-ament-cmake* ros-foxy-tf2* ros-foxy-rclcpp*
