@@ -50,10 +50,13 @@ Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-L
 dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
 
 # Check WSL version
+wsl.exe --set-default-version 2
 wsl -l -v
 ```
 
 - Install a [VcXsrv Windows X Server](https://sourceforge.net/projects/vcxsrv/) to be used as a X11 display server required to run GUI applications.
+  - "Native opengl" unchecked
+  - "Disable access control" checked
 - Create a shortcut for VcXSrv with the following parameters
 
 ```
@@ -64,8 +67,9 @@ wsl -l -v
 
 ```bash
 export DISPLAY="`grep nameserver /etc/resolv.conf | sed 's/nameserver //'`:0"
-export LIBGL_ALWAYS_INDIRECT=1
+export LIBGL_ALWAYS_INDIRECT=0
 ```
 
 - If you are using Visual Studio Code as and IDE you can configure for [remote WSL development](https://code.visualstudio.com/docs/cpp/config-wsl), allowing to debug code and interact with the WSL terminal.
+- If you require CUDA acceleration you can also install [NVidia CUDA drivers for WSL2](https://developer.nvidia.com/blog/announcing-cuda-on-windows-subsystem-for-linux-2/)
 

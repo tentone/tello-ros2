@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo " - Install Build Tools"
+
 # C++ Build tools
 apt install build-essential gdb
 
@@ -13,11 +15,15 @@ locale-gen en_US en_US.UTF-8
 update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 export LANG=en_US.UTF-8
 
+echo " - ROS2 sources"
+
 # Add ROS2 sources
 apt update
 apt install -y curl gnupg2 lsb-release
 curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
 sh -c 'echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list'
+
+echo " - Install ROS2"
 
 # Install ROS 2 (foxy)
 apt update
@@ -25,6 +31,8 @@ apt install -y ros-foxy-desktop
 
 # Step envrioment
 source /opt/ros/foxy/setup.bash
+
+echo " - Install Python ROS2"
 
 # Argcomplete
 apt install -y python3-pip
@@ -55,6 +63,9 @@ mkdir build
 cd build
 cmake ..
 make install -j4
+
+
+echo " - Register ROS2 in .bashrc"
 
 # Add to bashrc
 echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
