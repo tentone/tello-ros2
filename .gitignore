@@ -4,3 +4,5 @@ log/
 workspace/install/
 
 workspace/build/
+
+workspace/src/__pycache__/
