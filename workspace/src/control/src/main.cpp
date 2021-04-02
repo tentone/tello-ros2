@@ -8,14 +8,10 @@
 
 using namespace std::chrono_literals;
 
-/* This example creates a subclass of Node and uses std::bind() to register a
-* member function as a callback from the timer. */
-
 class MinimalPublisher : public rclcpp::Node
 {
   public:
-    MinimalPublisher()
-    : Node("control"), count_(0)
+    MinimalPublisher() : Node("control"), count_(0)
     {
       publisher_ = this->create_publisher<std_msgs::msg::String>("topic", 10);
       timer_ = this->create_wall_timer(

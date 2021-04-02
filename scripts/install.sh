@@ -2,6 +2,10 @@
 
 ./install-ros.sh
 
+echo "TelloPy Dependencies"
+
+
+
 echo "Install Tello ROS Node"
 
 apt install libasio-dev ros-eloquent-cv-bridge ros-eloquent-camera-calibration-parsers
