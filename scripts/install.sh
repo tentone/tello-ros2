@@ -69,7 +69,7 @@ echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
 echo "export _colcon_cd_root=~/ros2_install" >> ~/.bashrc
 
 echo " - Install Python dependencies"
-pip3 install catkin_pkg
+pip3 install catkin_pkg rospkg rosdep2
 
 echo " - Install CPP dependencies"
-apt-get install ros-foxy-ament-cmake* ros-foxy-tf2* ros-foxy-rclcpp*
+apt install ros-foxy-ament-cmake* ros-foxy-tf2* ros-foxy-rclcpp*
