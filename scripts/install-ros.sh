@@ -61,13 +61,22 @@ cd build
 cmake ..
 make install -j4
 
-echo " - Register ROS2 in .bashrc"
 
 # Add to bashrc
+echo " - Register ROS2 in .bashrc"
+
 echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
 echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
 echo "export _colcon_cd_root=~/ros2_install" >> ~/.bashrc
 
+# Install gazebo
+echo " - Install Gazebo"
+sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list'
+wget https://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
+apt update
+apt install gazebo11 libgazebo11-dev
+
+# Project dependencies
 echo " - Install Python dependencies"
 pip3 install catkin_pkg rospkg rosdep2
 

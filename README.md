@@ -10,7 +10,7 @@
 
 
 
-### ROS 2
+### ROS 2 Foxy
 
 - Run the install script to setup the ROS 2 (Foxy Fitzroy) environment. 
 - Check the [ROS2 Tutorials](https://index.ros.org/doc/ros2/Tutorials/) page to learn how to setup workspace and create packages.
@@ -40,6 +40,11 @@ ros2 pkg create --build-type ament_python --node-name <node_name> <package_name>
 
 - `rqt_topic` Used to monitor topics and their values in a list
 - `rviz` Visualize topics in 3D space.
+
+##### Camera calibration
+
+- Calibration files provided were obtained using our test drone.
+- To get your own calibration file use the [ROS camera calibration tool]()
 
 
 
