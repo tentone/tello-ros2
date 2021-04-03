@@ -75,10 +75,3 @@ sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_rel
 wget https://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
 apt update
 apt install gazebo11 libgazebo11-dev
-
-# Project dependencies
-echo " - Install Python dependencies"
-pip3 install catkin_pkg rospkg rosdep2
-
-echo " - Install CPP dependencies"
-apt install ros-foxy-ament-cmake* ros-foxy-tf2* ros-foxy-rclcpp*

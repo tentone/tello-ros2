@@ -6,7 +6,7 @@ import numpy
 import tf
 import tellopy
 
-from tello_driver.msg import FlightStatus
+from tello.msg import FlightStatus
 from std_msgs.msg import Empty, UInt8, UInt8, Bool, UInt8MultiArray
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
 from geometry_msgs.msg import Twist
@@ -394,12 +394,13 @@ class TelloNode(tellopy.Tello):
         self.throw_and_go()
 
 
-def main():
-    rclpy.init_node('tello')
+def main(args=None):
+    rclpy.init(args=args)
 
-    drone = TelloNode()
+    # drone = TelloNode()
 
-    while drone.state != drone.STATE_QUIT:
+    while True: # drone.state != drone.STATE_QUIT:
+        print('running')
         rclpy.spin()
 
 if __name__ == '__main__':

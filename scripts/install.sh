@@ -2,7 +2,14 @@
 
 ./install-ros.sh
 
-echo "Install Tello ROS Node"
+# Project dependencies
+echo " - Install Python dependencies"
+pip3 install catkin_pkg rospkg rosdep2 av
+
+echo " - Install CPP dependencies"
+apt install ros-foxy-ament-cmake* ros-foxy-tf2* ros-foxy-rclcpp*
+
+echo " - Install Tello ROS Node"
 
 apt install libasio-dev ros-foxy-cv-bridge ros-foxy-camera-calibration-parsers
 
