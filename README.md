@@ -83,3 +83,12 @@ export LIBGL_ALWAYS_INDIRECT=0
 - If you are using Visual Studio Code as and IDE you can configure for [remote WSL development](https://code.visualstudio.com/docs/cpp/config-wsl), allowing to debug code and interact with the WSL terminal.
 - If you require CUDA acceleration you can also install [NVidia CUDA drivers for WSL2](https://developer.nvidia.com/blog/announcing-cuda-on-windows-subsystem-for-linux-2/)
 
+- If you get `Clock skew detected. Your build may be incomplete.` while compiling the code run the following commands
+
+```bash
+sudo apt install ntp
+touch *
+sudo apt install ntpdate
+sudo ntpdate time.windows.com
+```
+

@@ -1,5 +1,5 @@
 import math
-import rospy
+import rclpy
 import av
 import threading
 import numpy
@@ -26,13 +26,13 @@ VIDEO_2_5MBS = 4
 class TelloNode(tellopy.Tello):
     def __init__(self):
         # Connection parameters
-        self.connect_timeout_sec = float(rospy.get_param('~connect_timeout_sec', 10.0))
-        self.tello_ip = rospy.get_param('~tello_ip', '192.168.10.1')
+        self.connect_timeout_sec = float(rclpy.get_param('~connect_timeout_sec', 10.0))
+        self.tello_ip = rclpy.get_param('~tello_ip', '192.168.10.1')
 
         # TF parameters
-        self.tf_base = rospy.get_param('~tf_base', 'map')
-        self.tf_drone = rospy.get_param('~tf_drone', 'drone')
-        self.tf_drone_body = rospy.get_param('~tf_drone_body', 'body')
+        self.tf_base = rclpy.get_param('~tf_base', 'map')
+        self.tf_drone = rclpy.get_param('~tf_drone', 'drone')
+        self.tf_drone_body = rclpy.get_param('~tf_drone_body', 'body')
 
         # OpenCV bridge
         self.bridge = CvBridge()
@@ -41,7 +41,7 @@ class TelloNode(tellopy.Tello):
         super(TelloNode, self).__init__(self.tello_ip)
 
         # Connect to drone
-        rospy.loginfo('Tello: Connecting to drone %s', self.tello_addr)
+        rclpy.loginfo('Tello: Connecting to drone %s', self.tello_addr)
         self.connect()
 
         try:
@@ -50,8 +50,8 @@ class TelloNode(tellopy.Tello):
             self.terminate(err)
             return
 
-        rospy.loginfo('Tello: Connected to drone')
-        rospy.on_shutdown(self.cb_shutdown)
+        rclpy.loginfo('Tello: Connected to drone')
+        rclpy.on_shutdown(self.cb_shutdown)
 
         # Max position delta without applying correction
         self.pos_max_delta = 2.0
@@ -70,13 +70,13 @@ class TelloNode(tellopy.Tello):
         self.cfg = None
 
         # Setup ROS publishers
-        self.pub_image_raw = rospy.Publisher('image_raw', Image, queue_size=1)
-        self.pub_camera_info = rospy.Publisher('camera_info', CameraInfo, queue_size=1, latch=True)
-        self.pub_status = rospy.Publisher('status', FlightStatus, queue_size=1, latch=True)
-        self.pub_imu = rospy.Publisher('imu', Imu, queue_size=1, latch=True)
-        self.pub_battery = rospy.Publisher('battery', BatteryState, queue_size=1, latch=True)
-        self.pub_temperature = rospy.Publisher('temperature', Temperature, queue_size=1, latch=True)
-        self.pub_odom = rospy.Publisher('odom', Odometry, queue_size=1, latch=True)
+        self.pub_image_raw = rclpy.Publisher('image_raw', Image, queue_size=1)
+        self.pub_camera_info = rclpy.Publisher('camera_info', CameraInfo, queue_size=1, latch=True)
+        self.pub_status = rclpy.Publisher('status', FlightStatus, queue_size=1, latch=True)
+        self.pub_imu = rclpy.Publisher('imu', Imu, queue_size=1, latch=True)
+        self.pub_battery = rclpy.Publisher('battery', BatteryState, queue_size=1, latch=True)
+        self.pub_temperature = rclpy.Publisher('temperature', Temperature, queue_size=1, latch=True)
+        self.pub_odom = rclpy.Publisher('odom', Odometry, queue_size=1, latch=True)
 
         # Setup TF broadcaster
         self.tf_br = tf.TransformBroadcaster()
@@ -91,52 +91,52 @@ class TelloNode(tellopy.Tello):
             self.backward(0)
             self.clockwise(0)
             self.counter_clockwise(0)
-        self.sub_stop = rospy.Subscriber('stop', Empty, cb_stop, queue_size=10)
+        self.sub_stop = rclpy.Subscriber('stop', Empty, cb_stop, queue_size=10)
 
         def cb_takeoff(msg):
             self.takeoff()
-        self.sub_takeoff = rospy.Subscriber('takeoff', Empty, cb_takeoff, queue_size=10)
+        self.sub_takeoff = rclpy.Subscriber('takeoff', Empty, cb_takeoff, queue_size=10)
 
         def cb_land(msg):
             self.land()
-        self.sub_land = rospy.Subscriber('land', Empty, cb_land, queue_size=10)
+        self.sub_land = rclpy.Subscriber('land', Empty, cb_land, queue_size=10)
 
         def cb_left(msg):
             self.left(msg.data)
-        self.sub_left = rospy.Subscriber('left', UInt8, cb_left, queue_size=10)
+        self.sub_left = rclpy.Subscriber('left', UInt8, cb_left, queue_size=10)
 
         def cb_right(msg):
             self.right(msg.data)
-        self.sub_right = rospy.Subscriber('right', UInt8, cb_right, queue_size=10)
+        self.sub_right = rclpy.Subscriber('right', UInt8, cb_right, queue_size=10)
 
         def cb_up(msg):
             self.up(msg.data)
-        self.sub_up = rospy.Subscriber('up', UInt8, cb_up, queue_size=10)
+        self.sub_up = rclpy.Subscriber('up', UInt8, cb_up, queue_size=10)
 
         def cb_down(msg):
             self.down(msg.data)
-        self.sub_down = rospy.Subscriber('down', UInt8, cb_down, queue_size=10)
+        self.sub_down = rclpy.Subscriber('down', UInt8, cb_down, queue_size=10)
 
         def cb_forward(msg):
             self.forward(msg.data)
-        self.sub_forward = rospy.Subscriber('forward', UInt8, cb_forward, queue_size=10)
+        self.sub_forward = rclpy.Subscriber('forward', UInt8, cb_forward, queue_size=10)
 
         def cb_backward(msg):
             self.backward(msg.data)
-        self.sub_backward = rospy.Subscriber('backward', UInt8, cb_backward, queue_size=10)
+        self.sub_backward = rclpy.Subscriber('backward', UInt8, cb_backward, queue_size=10)
 
         def cb_counter_clockwise(msg):
             self.clockwise(msg.data)
-        self.sub_counter_clockwise = rospy.Subscriber('counter_clockwise', UInt8, cb_counter_clockwise, queue_size=10)
+        self.sub_counter_clockwise = rclpy.Subscriber('counter_clockwise', UInt8, cb_counter_clockwise, queue_size=10)
 
         def cb_clockwise(msg):
             self.clockwise(msg.data)
-        self.sub_clockwise = rospy.Subscriber('clockwise', UInt8, cb_clockwise, queue_size=10)
+        self.sub_clockwise = rclpy.Subscriber('clockwise', UInt8, cb_clockwise, queue_size=10)
 
-        self.sub_cmd_vel = rospy.Subscriber('cmd_vel', Twist, self.cb_cmd_vel, queue_size=10)
-        self.sub_fast_mode = rospy.Subscriber('fast_mode', Bool, self.cb_fast_mode)
-        self.sub_throw_takeoff = rospy.Subscriber('throw_takeoff', Empty, self.cb_throw_takeoff)
-        self.sub_palm_land = rospy.Subscriber('palm_land', Empty, self.cb_palm_land)
+        self.sub_cmd_vel = rclpy.Subscriber('cmd_vel', Twist, self.cb_cmd_vel, queue_size=10)
+        self.sub_fast_mode = rclpy.Subscriber('fast_mode', Bool, self.cb_fast_mode)
+        self.sub_throw_takeoff = rclpy.Subscriber('throw_takeoff', Empty, self.cb_throw_takeoff)
+        self.sub_palm_land = rclpy.Subscriber('palm_land', Empty, self.cb_palm_land)
 
         # Subscribe data from drone
         self.subscribe(self.EVENT_FLIGHT_DATA, self.cb_drone_flight_data)
@@ -151,12 +151,12 @@ class TelloNode(tellopy.Tello):
         self.set_video_encoder_rate(VIDEO_1MBS)
         self.set_video_mode(False)
 
-        rospy.loginfo('Tello: Driver node ready')
+        rclpy.loginfo('Tello: Driver node ready')
 
     # Camera processing thread method should be called passed to a Thread object
     def camera_loop(self):
         # Configure node loop rate
-        rate = rospy.Rate(30)
+        rate = rclpy.Rate(30)
         frame_id = self.tf_drone
 
         # Drone video capture
@@ -175,7 +175,7 @@ class TelloNode(tellopy.Tello):
                     video_stream = container.streams.video[0]
                 except Exception as err:
                     container = None
-                    rospy.logerr('Tello: Failed to connect video stream (pyav) - %s' % str(err))
+                    rclpy.logerr('Tello: Failed to connect video stream (pyav) - %s' % str(err))
                     self.terminate(err)
 
             # Process frames from drone camera
@@ -194,7 +194,7 @@ class TelloNode(tellopy.Tello):
 
                     # Camera info message
                     camera_info_msg = CameraInfo()
-                    camera_info_msg.header.stamp = rospy.Time.now()
+                    camera_info_msg.header.stamp = rclpy.Time.now()
                     camera_info_msg.header.frame_id = self.tf_drone
                     camera_info_msg.width = 960
                     camera_info_msg.height = 720
@@ -207,14 +207,14 @@ class TelloNode(tellopy.Tello):
                     frame_dropped += 1
                     # If more than 100 frames dropped assume drone connection was lost
                     if frame_dropped > 100:
-                        rospy.logerr('Tello: Connection to the drone was lost - %s' % str(err))
+                        rclpy.logerr('Tello: Connection to the drone was lost - %s' % str(err))
                         self.terminate(err)
 
             rate.sleep()
 
     def terminate(self, err):
-        rospy.logerr(str(err))
-        rospy.signal_shutdown(str(err))
+        rclpy.logerr(str(err))
+        rclpy.signal_shutdown(str(err))
         self.quit()
 
     def cb_shutdown(self):
@@ -280,12 +280,12 @@ class TelloNode(tellopy.Tello):
         #print "------------------------------------------"
 
         # Publish drone transform
-        self.tf_br.sendTransform((pos_x, pos_y, pos_z), (0.0, 0.0, 0.0, 1.0), rospy.Time.now(), self.tf_base, self.tf_drone)
-        self.tf_br.sendTransform((0.0, 0.0, 0.0), (quaternion_roll[0], quaternion_roll[1], quaternion_roll[2], quaternion_roll[3]), rospy.Time.now(), self.tf_drone, self.tf_drone_body)
+        self.tf_br.sendTransform((pos_x, pos_y, pos_z), (0.0, 0.0, 0.0, 1.0), rclpy.Time.now(), self.tf_base, self.tf_drone)
+        self.tf_br.sendTransform((0.0, 0.0, 0.0), (quaternion_roll[0], quaternion_roll[1], quaternion_roll[2], quaternion_roll[3]), rclpy.Time.now(), self.tf_drone, self.tf_drone_body)
 
         # Publish odom data
         odom_msg = Odometry()
-        odom_msg.header.stamp = rospy.Time.now()
+        odom_msg.header.stamp = rclpy.Time.now()
         odom_msg.header.frame_id = self.tf_base
         odom_msg.pose.pose.position.x = pos_x
         odom_msg.pose.pose.position.y = pos_y
@@ -297,7 +297,7 @@ class TelloNode(tellopy.Tello):
 
         # Publish IMU data
         imu_msg = Imu()
-        imu_msg.header.stamp = rospy.Time.now()
+        imu_msg.header.stamp = rclpy.Time.now()
         imu_msg.header.frame_id = self.tf_drone
         imu_msg.header.seq = count = data.count
         imu_msg.linear_acceleration.x = data.imu.acc_x
@@ -395,12 +395,12 @@ class TelloNode(tellopy.Tello):
 
 
 def main():
-    rospy.init_node('tello')
+    rclpy.init_node('tello')
 
     drone = TelloNode()
 
     while drone.state != drone.STATE_QUIT:
-        rospy.spin()
+        rclpy.spin()
 
 if __name__ == '__main__':
     main()
