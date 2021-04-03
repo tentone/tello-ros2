@@ -6,3 +6,5 @@ workspace/install/
 workspace/build/
 
 workspace/src/__pycache__/
+
+*.pyc
