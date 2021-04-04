@@ -1,12 +1,9 @@
 from . import event
 
-
 class signal(object):
     All = event.Event('*')
 
-
 signals = {}
-
 
 def connect(receiver, sig=signal.All):
     if sig in signals:

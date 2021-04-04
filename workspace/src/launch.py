@@ -11,9 +11,9 @@ def generate_launch_description():
             name='control'
         ),
         Node(
-            package='minimal_publisher',
-            executable='publisher_old_school',
+            package='tello',
+            executable='tello',
             namespace='/',
-            name='minimal_publisher'
+            name='tello'
         )
     ])

@@ -54,24 +54,30 @@ ALT_LIMIT_MSG                       = 0x1056
 LOW_BAT_THRESHOLD_MSG               = 0x1057
 ATT_LIMIT_CMD                       = 0x1058 # Stated incorrectly by Wiki (checked from raw packets)
 ATT_LIMIT_MSG                       = 0x1059
-
 EMERGENCY_CMD                       = 'emergency'
 
 #Flip commands taken from Go version of code
 #FlipFront flips forward.
 FlipFront = 0
+
 #FlipLeft flips left.
 FlipLeft = 1
+
 #FlipBack flips backwards.
 FlipBack = 2
+
 #FlipRight flips to the right.
 FlipRight = 3
+
 #FlipForwardLeft flips forwards and to the left.
 FlipForwardLeft = 4
+
 #FlipBackLeft flips backwards and to the left.
 FlipBackLeft = 5
+
 #FlipBackRight flips backwards and to the right.
 FlipBackRight = 6
+
 #FlipForwardRight flips forwards and to the right.
 FlipForwardRight = 7
 

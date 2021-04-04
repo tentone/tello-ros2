@@ -1,413 +1,858 @@
-import math
-import rclpy
-import av
 import threading
-import numpy
-import tf
-import tellopy
+import socket
+import time
+import datetime
+import struct
+import os
 
-from tello.msg import FlightStatus
+from . import logger
+from . import event
+from . import state
+from . import error
+from . import video_stream
+from . protocol import *
+from . import dispatcher
 
-from std_msgs.msg import Empty, UInt8, UInt8, Bool
-from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
-from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
-from cv_bridge import CvBridge
+log = logger.Logger('Tello')
 
-# Video rates possible for the tello drone
-VIDEO_AUTO = 0
-VIDEO_1MBS = 1
-VIDEO_1_5MBS = 2
-VIDEO_2MBS = 3
-VIDEO_2_5MBS = 4
+class Tello(object):
+    EVENT_CONNECTED = event.Event('connected')
+    EVENT_WIFI = event.Event('wifi')
+    EVENT_LIGHT = event.Event('light')
+    EVENT_FLIGHT_DATA = event.Event('fligt_data')
+    EVENT_LOG_HEADER = event.Event('log_header')
+    EVENT_LOG = EVENT_LOG_HEADER
+    EVENT_LOG_RAWDATA = event.Event('log_rawdata')
+    EVENT_LOG_DATA = event.Event('log_data')
+    EVENT_LOG_CONFIG = event.Event('log_config')
+    EVENT_TIME = event.Event('time')
+    EVENT_VIDEO_FRAME = event.Event('video frame')
+    EVENT_VIDEO_DATA = event.Event('video data')
+    EVENT_DISCONNECTED = event.Event('disconnected')
+    EVENT_FILE_RECEIVED = event.Event('file received')
 
-# Tello ROS node class, inherits from the tellopy.Tello controller object.
-#
-# Can be configured to be used by multiple drones, publishes, all data collected from the drone and provides control using ROS messages.
-class TelloNode(tellopy.Tello):
-    def __init__(self, node):
-        self.node = node
+    # internal events
+    __EVENT_CONN_REQ = event.Event('conn_req')
+    __EVENT_CONN_ACK = event.Event('conn_ack')
+    __EVENT_TIMEOUT = event.Event('timeout')
+    __EVENT_QUIT_REQ = event.Event('quit_req')
 
-        # Connection parameters
-        self.connect_timeout_sec = float(node.get_param('~connect_timeout_sec', 10.0))
-        self.tello_ip = node.get_param('~tello_ip', '192.168.10.1')
+    # for backward comaptibility
+    CONNECTED_EVENT = EVENT_CONNECTED
+    WIFI_EVENT = EVENT_WIFI
+    LIGHT_EVENT = EVENT_LIGHT
+    FLIGHT_EVENT = EVENT_FLIGHT_DATA
+    LOG_EVENT = EVENT_LOG
+    TIME_EVENT = EVENT_TIME
+    VIDEO_FRAME_EVENT = EVENT_VIDEO_FRAME
 
-        # TF parameters
-        self.tf_base = node.get_param('~tf_base', 'map')
-        self.tf_drone = node.get_param('~tf_drone', 'drone')
-        self.tf_drone_body = node.get_param('~tf_drone_body', 'body')
+    STATE_DISCONNECTED = state.State('disconnected')
+    STATE_CONNECTING = state.State('connecting')
+    STATE_CONNECTED = state.State('connected')
+    STATE_QUIT = state.State('quit')
 
-        # OpenCV bridge
-        self.bridge = CvBridge()
-        self.frame_thread = None
+    LOG_ERROR = logger.LOG_ERROR
+    LOG_WARN = logger.LOG_WARN
+    LOG_INFO = logger.LOG_INFO
+    LOG_DEBUG = logger.LOG_DEBUG
+    LOG_ALL = logger.LOG_ALL
 
-        super(TelloNode, self).__init__(self.tello_ip)
+    def __init__(self, tello_ip='192.168.10.1', port=9000):
+        self.port = port
+        self.tello_ip = tello_ip
+        self.tello_addr = (tello_ip, 8889)
+        self.debug = False
+        self.pkt_seq_num = 0x01e4
+        self.port = port
+        self.udpsize = 2000
+        self.left_x = 0.0
+        self.left_y = 0.0
+        self.right_x = 0.0
+        self.right_y = 0.0
+        self.sock = None
+        self.state = self.STATE_DISCONNECTED
+        self.lock = threading.Lock()
+        self.connected = threading.Event()
+        self.video_enabled = False
+        self.prev_video_data_time = None
+        self.video_data_size = 0
+        self.video_data_loss = 0
+        self.log = log
+        self.exposure = 0
+        self.video_encoder_rate = 4
+        self.video_stream = None
+        self.wifi_strength = 0
+        self.log_data = LogData(log)
+        self.log_data_file = None
+        self.log_data_header_recorded = False
 
-        # Connect to drone
-        self.node.get_logger().info('Tello: Connecting to drone %s', self.tello_addr)
-        self.connect()
+        # video zoom state
+        self.zoom = False
 
+        # fast mode state
+        self.fast_mode = False   
+        
+        # File recieve state.
+        self.file_recv = {}  # Map filenum -> protocol.DownloadedFile
+
+        # Create a UDP socket
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(('', self.port))
+        self.sock.settimeout(2.0)
+
+        dispatcher.connect(self.__state_machine, dispatcher.signal.All)
+        threading.Thread(target=self.__recv_thread).start()
+        threading.Thread(target=self.__video_thread).start()
+
+    def set_loglevel(self, level):
+        """
+        Set_loglevel controls the output messages. Valid levels are
+        LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG and LOG_ALL.
+        """
+        log.set_level(level)
+
+    def get_video_stream(self):
+        """
+        Get_video_stream is used to prepare buffer object which receive video data from the drone.
+        """
+        newly_created = False
+        self.lock.acquire()
+        log.info('get video stream')
         try:
-            self.wait_for_connection(timeout=self.connect_timeout_sec)
-        except Exception as err:
-            self.terminate(err)
+            if self.video_stream is None:
+                self.video_stream = video_stream.VideoStream(self)
+                newly_created = True
+            res = self.video_stream
+        finally:
+            self.lock.release()
+        if newly_created:
+            self.__send_exposure()
+            self.__send_video_encoder_rate()
+            self.start_video()
+
+        return res
+
+    def connect(self):
+        """Connect is used to send the initial connection request to the drone."""
+        self.__publish(event=self.__EVENT_CONN_REQ)
+
+    def wait_for_connection(self, timeout=None):
+        """Wait_for_connection will block until the connection is established."""
+        if not self.connected.wait(timeout):
+            raise error.TelloError('timeout')
+
+    def __send_conn_req(self):
+        port = 9617
+        port0 = (int(port/1000) % 10) << 4 | (int(port/100) % 10)
+        port1 = (int(port/10) % 10) << 4 | (int(port/1) % 10)
+        buf = 'conn_req:%c%c' % (chr(port0), chr(port1))
+        log.info('send connection request (cmd="%s%02x%02x")' % (str(buf[:-2]), port0, port1))
+        return self.send_packet(Packet(buf))
+
+    def subscribe(self, signal, handler):
+        """Subscribe a event such as EVENT_CONNECTED, EVENT_FLIGHT_DATA, EVENT_VIDEO_FRAME and so on."""
+        dispatcher.connect(handler, signal)
+
+    def __publish(self, event, data=None, **args):
+        args.update({'data': data})
+        if 'signal' in args:
+            del args['signal']
+        if 'sender' in args:
+            del args['sender']
+        log.debug('publish signal=%s, args=%s' % (event, args))
+        dispatcher.send(event, sender=self, **args)
+
+    def takeoff(self):
+        """Takeoff tells the drones to liftoff and start flying."""
+        log.info('set altitude limit 30m')
+        pkt = Packet(SET_ALT_LIMIT_CMD)
+        pkt.add_byte(0x1e)  # 30m
+        pkt.add_byte(0x00)
+        self.send_packet(pkt)
+        log.info('takeoff (cmd=0x%02x seq=0x%04x)' % (TAKEOFF_CMD, self.pkt_seq_num))
+        pkt = Packet(TAKEOFF_CMD)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def throw_and_go(self):
+        """Throw_and_go starts a throw and go sequence"""
+        log.info('throw_and_go (cmd=0x%02x seq=0x%04x)' % (THROW_AND_GO_CMD, self.pkt_seq_num))
+        pkt = Packet(THROW_AND_GO_CMD, 0x48)
+        pkt.add_byte(0x00)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def land(self):
+        """Land tells the drone to come in for landing."""
+        log.info('land (cmd=0x%02x seq=0x%04x)' % (LAND_CMD, self.pkt_seq_num))
+        pkt = Packet(LAND_CMD)
+        pkt.add_byte(0x00)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def palm_land(self):
+        """Tells the drone to wait for a hand underneath it and then land."""
+        log.info('palmland (cmd=0x%02x seq=0x%04x)' % (PALM_LAND_CMD, self.pkt_seq_num))
+        pkt = Packet(PALM_LAND_CMD)
+        pkt.add_byte(0x00)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def quit(self):
+        """Quit stops the internal threads."""
+        log.info('quit')
+        self.__publish(event=self.__EVENT_QUIT_REQ)
+
+    def get_alt_limit(self):
+        ''' ... '''
+        self.log.debug('get altitude limit (cmd=0x%02x seq=0x%04x)' % (
+            ALT_LIMIT_MSG, self.pkt_seq_num))
+        pkt = Packet(ALT_LIMIT_MSG)
+        pkt.fixup()
+        return self.send_packet(pkt)
+        
+    def set_alt_limit(self, limit):
+        self.log.info('set altitude limit=%s (cmd=0x%02x seq=0x%04x)' % (
+            int(limit), SET_ALT_LIMIT_CMD, self.pkt_seq_num))
+        pkt = Packet(SET_ALT_LIMIT_CMD)
+        pkt.add_byte(int(limit))
+        pkt.add_byte(0x00)
+        pkt.fixup()        
+        self.send_packet(pkt)
+        self.get_alt_limit()
+
+    def get_att_limit(self):
+        ''' ... '''
+        self.log.debug('get attitude limit (cmd=0x%02x seq=0x%04x)' % (
+            ATT_LIMIT_MSG, self.pkt_seq_num))
+        pkt = Packet(ATT_LIMIT_MSG)
+        pkt.fixup()
+        return self.send_packet(pkt)
+        
+    def set_att_limit(self, limit):
+        self.log.info('set attitude limit=%s (cmd=0x%02x seq=0x%04x)' % (
+            int(limit), ATT_LIMIT_CMD, self.pkt_seq_num))
+        pkt = Packet(ATT_LIMIT_CMD)
+        pkt.add_byte(0x00)        
+        pkt.add_byte(0x00)
+        pkt.add_byte( int(float_to_hex(float(limit))[4:6], 16) ) # 'attitude limit' formatted in float of 4 bytes
+        pkt.add_byte(0x41)
+        pkt.fixup()
+        self.send_packet(pkt)
+        self.get_att_limit()
+
+    def get_low_bat_threshold(self):
+        ''' ... '''
+        self.log.debug('get low battery threshold (cmd=0x%02x seq=0x%04x)' % (
+            LOW_BAT_THRESHOLD_MSG, self.pkt_seq_num))
+        pkt = Packet(LOW_BAT_THRESHOLD_MSG)
+        pkt.fixup()
+        return self.send_packet(pkt)
+        
+    def set_low_bat_threshold(self, threshold):
+        self.log.info('set low battery threshold=%s (cmd=0x%02x seq=0x%04x)' % (
+            int(threshold), LOW_BAT_THRESHOLD_CMD, self.pkt_seq_num))
+        pkt = Packet(LOW_BAT_THRESHOLD_CMD)
+        pkt.add_byte(int(threshold))
+        pkt.fixup()        
+        self.send_packet(pkt)
+        self.get_low_bat_threshold()
+
+    def __send_time_command(self):
+        log.info('send_time (cmd=0x%02x seq=0x%04x)' % (TIME_CMD, self.pkt_seq_num))
+        pkt = Packet(TIME_CMD, 0x50)
+        pkt.add_byte(0)
+        pkt.add_time()
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def __send_start_video(self):
+        pkt = Packet(VIDEO_START_CMD, 0x60)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def __send_video_mode(self, mode):
+        pkt = Packet(VIDEO_MODE_CMD)
+        pkt.add_byte(mode)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def set_video_mode(self, zoom=False):
+        """Tell the drone whether to capture 960x720 4:3 video, or 1280x720 16:9 zoomed video.
+        4:3 has a wider field of view (both vertically and horizontally), 16:9 is crisper."""
+        log.info('set video mode zoom=%s (cmd=0x%02x seq=0x%04x)' % (
+            zoom, VIDEO_START_CMD, self.pkt_seq_num))
+        self.zoom = zoom
+        return self.__send_video_mode(int(zoom))
+
+    def start_video(self):
+        """Start_video tells the drone to send start info (SPS/PPS) for video stream."""
+        log.info('start video (cmd=0x%02x seq=0x%04x)' % (VIDEO_START_CMD, self.pkt_seq_num))
+        self.video_enabled = True
+        self.__send_exposure()
+        self.__send_video_encoder_rate()
+        return self.__send_start_video()
+
+    def set_exposure(self, level):
+        """Set_exposure sets the drone camera exposure level. Valid levels are 0, 1, and 2."""
+        if level < 0 or 2 < level:
+            raise error.TelloError('Invalid exposure level')
+        log.info('set exposure (cmd=0x%02x seq=0x%04x)' % (EXPOSURE_CMD, self.pkt_seq_num))
+        self.exposure = level
+        return self.__send_exposure()
+
+    def __send_exposure(self):
+        pkt = Packet(EXPOSURE_CMD, 0x48)
+        pkt.add_byte(self.exposure)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def set_video_encoder_rate(self, rate):
+        """Set_video_encoder_rate sets the drone video encoder rate."""
+        log.info('set video encoder rate (cmd=0x%02x seq=%04x)' %
+                 (VIDEO_ENCODER_RATE_CMD, self.pkt_seq_num))
+        self.video_encoder_rate = rate
+        return self.__send_video_encoder_rate()
+
+    def __send_video_encoder_rate(self):
+        pkt = Packet(VIDEO_ENCODER_RATE_CMD, 0x68)
+        pkt.add_byte(self.video_encoder_rate)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def take_picture(self):
+        log.info('take picture')
+        return self.send_packet_data(TAKE_PICTURE_COMMAND, type=0x68)
+
+    def up(self, val):
+        """Up tells the drone to ascend. Pass in an int from 0-100."""
+        log.info('up(val=%d)' % val)
+        self.left_y = val / 100.0
+
+    def down(self, val):
+        """Down tells the drone to descend. Pass in an int from 0-100."""
+        log.info('down(val=%d)' % val)
+        self.left_y = val / 100.0 * -1
+
+    def forward(self, val):
+        """Forward tells the drone to go forward. Pass in an int from 0-100."""
+        log.info('forward(val=%d)' % val)
+        self.right_y = val / 100.0
+
+    def backward(self, val):
+        """Backward tells the drone to go in reverse. Pass in an int from 0-100."""
+        log.info('backward(val=%d)' % val)
+        self.right_y = val / 100.0 * -1
+
+    def right(self, val):
+        """Right tells the drone to go right. Pass in an int from 0-100."""
+        log.info('right(val=%d)' % val)
+        self.right_x = val / 100.0
+
+    def left(self, val):
+        """Left tells the drone to go left. Pass in an int from 0-100."""
+        log.info('left(val=%d)' % val)
+        self.right_x = val / 100.0 * -1
+
+    def clockwise(self, val):
+        """
+        Clockwise tells the drone to rotate in a clockwise direction.
+        Pass in an int from 0-100.
+        """
+        log.info('clockwise(val=%d)' % val)
+        self.left_x = val / 100.0
+
+    def counter_clockwise(self, val):
+        """
+        CounterClockwise tells the drone to rotate in a counter-clockwise direction.
+        Pass in an int from 0-100.
+        """
+        log.info('counter_clockwise(val=%d)' % val)
+        self.left_x = val / 100.0 * -1
+
+    def flip_forward(self):
+        """flip_forward tells the drone to perform a forwards flip"""
+        log.info('flip_forward (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
+        pkt = Packet(FLIP_CMD, 0x70)
+        pkt.add_byte(FlipFront)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def flip_back(self):
+        """flip_back tells the drone to perform a backwards flip"""
+        log.info('flip_back (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
+        pkt = Packet(FLIP_CMD, 0x70)
+        pkt.add_byte(FlipBack)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def flip_right(self):
+        """flip_right tells the drone to perform a right flip"""
+        log.info('flip_right (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
+        pkt = Packet(FLIP_CMD, 0x70)
+        pkt.add_byte(FlipRight)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def flip_left(self):
+        """flip_left tells the drone to perform a left flip"""
+        log.info('flip_left (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
+        pkt = Packet(FLIP_CMD, 0x70)
+        pkt.add_byte(FlipLeft)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def flip_forwardleft(self):
+        """flip_forwardleft tells the drone to perform a forwards left flip"""
+        log.info('flip_forwardleft (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
+        pkt = Packet(FLIP_CMD, 0x70)
+        pkt.add_byte(FlipForwardLeft)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def flip_backleft(self):
+        """flip_backleft tells the drone to perform a backwards left flip"""
+        log.info('flip_backleft (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
+        pkt = Packet(FLIP_CMD, 0x70)
+        pkt.add_byte(FlipBackLeft)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def flip_forwardright(self):
+        """flip_forwardright tells the drone to perform a forwards right flip"""
+        log.info('flip_forwardright (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
+        pkt = Packet(FLIP_CMD, 0x70)
+        pkt.add_byte(FlipForwardRight)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def flip_backright(self):
+        """flip_backleft tells the drone to perform a backwards right flip"""
+        log.info('flip_backright (cmd=0x%02x seq=0x%04x)' % (FLIP_CMD, self.pkt_seq_num))
+        pkt = Packet(FLIP_CMD, 0x70)
+        pkt.add_byte(FlipBackRight)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def __fix_range(self, val, min=-1.0, max=1.0):
+        if val < min:
+            val = min
+        elif val > max:
+            val = max
+        return val
+
+    def set_throttle(self, throttle):
+        """
+        Set_throttle controls the vertical up and down motion of the drone.
+        Pass in an int from -1.0 ~ 1.0. (positive value means upward)
+        """
+        if self.left_y != self.__fix_range(throttle):
+            log.info('set_throttle(val=%4.2f)' % throttle)
+        self.left_y = self.__fix_range(throttle)
+
+    def set_yaw(self, yaw):
+        """
+        Set_yaw controls the left and right rotation of the drone.
+        Pass in an int from -1.0 ~ 1.0. (positive value will make the drone turn to the right)
+        """
+        if self.left_x != self.__fix_range(yaw):
+            log.info('set_yaw(val=%4.2f)' % yaw)
+        self.left_x = self.__fix_range(yaw)
+
+    def set_pitch(self, pitch):
+        """
+        Set_pitch controls the forward and backward tilt of the drone.
+        Pass in an int from -1.0 ~ 1.0. (positive value will make the drone move forward)
+        """
+        if self.right_y != self.__fix_range(pitch):
+            log.info('set_pitch(val=%4.2f)' % pitch)
+        self.right_y = self.__fix_range(pitch)
+
+    def set_roll(self, roll):
+        """
+        Set_roll controls the the side to side tilt of the drone.
+        Pass in an int from -1.0 ~ 1.0. (positive value will make the drone move to the right)
+        """
+        if self.right_x != self.__fix_range(roll):
+            log.info('set_roll(val=%4.2f)' % roll)
+        self.right_x = self.__fix_range(roll)
+
+    def toggle_fast_mode(self):
+        if self.fast_mode:
+            self.fast_mode = False
+        elif not self.fast_mode:
+            self.fast_mode = True
+            
+    def manual_takeoff(self):
+        # Hold max 'yaw' and min 'pitch', 'roll', 'throttle' for several seconds
+        self.set_pitch(-1)
+        self.set_roll(-1)
+        self.set_yaw(1)
+        self.set_throttle(-1)
+        self.fast_mode = False            
+
+    def __send_stick_command(self):
+        pkt = Packet(STICK_CMD, 0x60)
+
+        axis1 = int(1024 + 660.0 * self.right_x) & 0x7ff
+        axis2 = int(1024 + 660.0 * self.right_y) & 0x7ff
+        axis3 = int(1024 + 660.0 * self.left_y) & 0x7ff
+        axis4 = int(1024 + 660.0 * self.left_x) & 0x7ff
+        axis5 = int(self.fast_mode) & 0x01        
+        '''
+        11 bits (-1024 ~ +1023) x 4 axis = 44 bits
+        fast_mode takes 1 bit        
+        44 bits will be packed in to 6 bytes (48 bits)
+
+                    axis4      axis3      axis2      axis1
+             |          |          |          |          |
+                 4         3         2         1         0
+        98765432109876543210987654321098765432109876543210
+         |       |       |       |       |       |       |
+             byte5   byte4   byte3   byte2   byte1   byte0
+        '''
+        log.debug("stick command: fast=%d yaw=%4d thr=%4d pit=%4d rol=%4d" %
+                  (axis5, axis4, axis3, axis2, axis1))
+        log.debug("stick command: fast=%04x yaw=%04x thr=%04x pit=%04x rol=%04x" %
+                  (axis5, axis4, axis3, axis2, axis1))
+        packed = axis1 | (axis2 << 11) | (
+            axis3 << 22) | (axis4 << 33) | (axis5 << 44)
+        packed_bytes = struct.pack('<Q', packed)
+        pkt.add_byte(byte(packed_bytes[0]))
+        pkt.add_byte(byte(packed_bytes[1]))
+        pkt.add_byte(byte(packed_bytes[2]))
+        pkt.add_byte(byte(packed_bytes[3]))
+        pkt.add_byte(byte(packed_bytes[4]))
+        pkt.add_byte(byte(packed_bytes[5]))
+        pkt.add_time()
+        pkt.fixup()
+        log.debug("stick command: %s" % byte_to_hexstring(pkt.get_buffer()))
+        return self.send_packet(pkt)
+
+    def __send_ack_log(self, id):
+        pkt = Packet(LOG_HEADER_MSG, 0x50)
+        pkt.add_byte(0x00)
+        b0, b1 = le16(id)
+        pkt.add_byte(b0)
+        pkt.add_byte(b1)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def send_packet(self, pkt):
+        """Send_packet is used to send a command packet to the drone."""
+        try:
+            cmd = pkt.get_buffer()
+            self.sock.sendto(cmd, self.tello_addr)
+            log.debug("send_packet: %s" % byte_to_hexstring(cmd))
+        except socket.error as err:
+            if self.state == self.STATE_CONNECTED:
+                log.error("send_packet: %s" % str(err))
+            else:
+                log.info("send_packet: %s" % str(err))
+            return False
+
+        return True
+
+    def send_packet_data(self, command, type=0x68, payload=[]):
+        pkt = Packet(command, type, payload)
+        pkt.fixup()
+        return self.send_packet(pkt)
+
+    def __process_packet(self, data):
+        if isinstance(data, str):
+            data = bytearray([x for x in data])
+
+        if str(data[0:9]) == 'conn_ack:' or data[0:9] == b'conn_ack:':
+            log.info('connected. (port=%2x%2x)' % (data[9], data[10]))
+            log.debug('    %s' % byte_to_hexstring(data))
+            if self.video_enabled:
+                self.__send_exposure()
+                self.__send_video_encoder_rate()
+                self.__send_start_video()
+            self.__publish(self.__EVENT_CONN_ACK, data)
+
+            return True
+
+        if data[0] != START_OF_PACKET:
+            log.info('start of packet != %02x (%02x) (ignored)' % (START_OF_PACKET, data[0]))
+            log.info('    %s' % byte_to_hexstring(data))
+            log.info('    %s' % str(map(chr, data))[1:-1])
+            return False
+
+        pkt = Packet(data)
+        cmd = uint16(data[5], data[6])
+        if cmd == LOG_HEADER_MSG:
+            id = uint16(data[9], data[10])
+            log.info("recv: log_header: id=%04x, '%s'" % (id, str(data[28:54])))
+            log.debug("recv: log_header: %s" % byte_to_hexstring(data[9:]))
+            self.__send_ack_log(id)
+            self.__publish(event=self.EVENT_LOG_HEADER, data=data[9:])
+            if self.log_data_file and not self.log_data_header_recorded:
+                self.log_data_file.write(data[12:-2])
+                self.log_data_header_recorded = True
+        elif cmd == LOG_DATA_MSG:
+            log.debug("recv: log_data: length=%d, %s" % (len(data[9:]), byte_to_hexstring(data[9:])))
+            self.__publish(event=self.EVENT_LOG_RAWDATA, data=data[9:])
+            try:
+                self.log_data.update(data[10:])
+                if self.log_data_file:
+                    self.log_data_file.write(data[10:-2])
+            except Exception as ex:
+                log.error('%s' % str(ex))
+            self.__publish(event=self.EVENT_LOG_DATA, data=self.log_data)
+
+        elif cmd == LOG_CONFIG_MSG:
+            log.debug("recv: log_config: length=%d, %s" % (len(data[9:]), byte_to_hexstring(data[9:])))
+            self.__publish(event=self.EVENT_LOG_CONFIG, data=data[9:])
+        elif cmd == WIFI_MSG:
+            log.debug("recv: wifi: %s" % byte_to_hexstring(data[9:]))
+            self.wifi_strength = data[9]
+            self.__publish(event=self.EVENT_WIFI, data=data[9:])
+        elif cmd == ALT_LIMIT_MSG:
+            log.info("recv: altitude limit: %s" % byte_to_hexstring(data[9:-2]))
+        elif cmd == ATT_LIMIT_MSG:
+            log.info("recv: attitude limit: %s" % byte_to_hexstring(data[9:-2]))
+        elif cmd == LOW_BAT_THRESHOLD_MSG:
+            log.info("recv: low battery threshold: %s" % byte_to_hexstring(data[9:-2]))
+        elif cmd == LIGHT_MSG:
+            log.debug("recv: light: %s" % byte_to_hexstring(data[9:-2]))
+            self.__publish(event=self.EVENT_LIGHT, data=data[9:])
+        elif cmd == FLIGHT_MSG:
+            flight_data = FlightData(data[9:])
+            flight_data.wifi_strength = self.wifi_strength
+            log.debug("recv: flight data: %s" % str(flight_data))
+            self.__publish(event=self.EVENT_FLIGHT_DATA, data=flight_data)
+        elif cmd == TIME_CMD:
+            log.debug("recv: time data: %s" % byte_to_hexstring(data))
+            self.__publish(event=self.EVENT_TIME, data=data[7:9])
+        elif cmd in (SET_ALT_LIMIT_CMD, ATT_LIMIT_CMD, LOW_BAT_THRESHOLD_CMD, TAKEOFF_CMD, LAND_CMD, VIDEO_START_CMD, VIDEO_ENCODER_RATE_CMD, PALM_LAND_CMD,
+                     EXPOSURE_CMD, THROW_AND_GO_CMD, EMERGENCY_CMD):
+            log.debug("recv: ack: cmd=0x%02x seq=0x%04x %s" %
+                     (uint16(data[5], data[6]), uint16(data[7], data[8]), byte_to_hexstring(data)))
+        elif cmd == TELLO_CMD_FILE_SIZE:
+            # Drone is about to send us a file. Get ready.
+            # N.b. one of the fields in the packet is a file ID; by demuxing
+            # based on file ID we can receive multiple files at once. This
+            # code doesn't support that yet, though, so don't take one photo
+            # while another is still being received.
+            log.info("recv: file size: %s" % byte_to_hexstring(data))
+            if len(pkt.get_data()) >= 7:
+                (size, filenum) = struct.unpack('<xLH', pkt.get_data())
+                log.info('      file size: num=%d bytes=%d' % (filenum, size))
+                # Initialize file download state.
+                self.file_recv[filenum] = DownloadedFile(filenum, size)
+            else:
+                # We always seem to get two files, one with most of the payload missing.
+                # Not sure what the second one is for.
+                log.warn('      file size: payload too small: %s' % byte_to_hexstring(pkt.get_data()))
+            # Ack the packet.
+            self.send_packet(pkt)
+        elif cmd == TELLO_CMD_FILE_DATA:
+            # log.info("recv: file data: %s" % byte_to_hexstring(data[9:21]))
+            # Drone is sending us a fragment of a file it told us to prepare
+            # for earlier.
+            self.recv_file_data(pkt.get_data())
+        else:
+            log.info('unknown packet: %04x %s' % (cmd, byte_to_hexstring(data)))
+            return False
+
+        return True
+
+    def recv_file_data(self, data):
+        (filenum,chunk,fragment,size) = struct.unpack('<HLLH', data[0:12])
+        file = self.file_recv.get(filenum, None)
+
+        # Preconditions.
+        if file is None:
             return
 
-        self.node.get_logger().info('Tello: Connected to drone')
+        if file.recvFragment(chunk, fragment, size, data[12:12+size]):
+            # Did this complete a chunk? Ack the chunk so the drone won't
+            # re-send it.
+            self.send_packet_data(TELLO_CMD_FILE_DATA, type=0x50,
+                payload=struct.pack('<BHL', 0, filenum, chunk))
 
-        # Max position delta without applying correction
-        self.pos_max_delta = 2.0
+        if file.done():
+            # We have the whole file! First, send a normal ack with the first
+            # byte set to 1 to indicate file completion.
+            self.send_packet_data(TELLO_CMD_FILE_DATA, type=0x50,
+                payload=struct.pack('<BHL', 1, filenum, chunk))
+            # Then send the FILE_COMPLETE packed separately telling it how
+            # large we thought the file was.
+            self.send_packet_data(TELLO_CMD_FILE_COMPLETE, type=0x48,
+                payload=struct.pack('<HL', filenum, file.size))
+            # Inform subscribers that we have a file and clean up.
+            self.__publish(event=self.EVENT_FILE_RECEIVED, data=file.data())
+            del self.file_recv[filenum]
 
-        # Correction applied to drone positioning
-        self.pos_delta_x = 0.0
-        self.pos_delta_y = 0.0
-        self.pos_delta_z = 0.0
+    def record_log_data(self, path = None):
+        if path == None:
+            path = '%s/Documents/tello-%s.dat' % (
+                os.getenv('HOME'),
+                datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S'))
+        log.info('record log data in %s' % path)
+        self.log_data_file = open(path, 'wb')
 
-        # Position of the drone
-        self.pos_x = 0.0
-        self.pos_y = 0.0
-        self.pos_z = 0.0
+    def __state_machine(self, event, sender, data, **args):
+        self.lock.acquire()
+        cur_state = self.state
+        event_connected = False
+        event_disconnected = False
+        log.debug('event %s in state %s' % (str(event), str(self.state)))
 
-        # Setup dynamic reconfigure
-        self.cfg = None
+        if self.state == self.STATE_DISCONNECTED:
+            if event == self.__EVENT_CONN_REQ:
+                self.__send_conn_req()
+                self.state = self.STATE_CONNECTING
+            elif event == self.__EVENT_QUIT_REQ:
+                self.state = self.STATE_QUIT
+                event_disconnected = True
+                self.video_enabled = False
 
-        # Setup ROS publishers
-        self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', queue_size=1)
-        self.pub_camera_info = self.node.create_publisher(CameraInfo, 'camera_info', queue_size=1, latch=True)
-        self.pub_status = self.node.create_publisher(FlightStatus, 'status', queue_size=1, latch=True)
-        self.pub_imu = self.node.create_publisher(Imu, 'imu', queue_size=1, latch=True)
-        self.pub_battery = self.node.create_publisher(BatteryState, 'battery', queue_size=1, latch=True)
-        self.pub_temperature = self.node.create_publisher(Temperature, 'temperature', queue_size=1, latch=True)
-        self.pub_odom = self.node.create_publisher(Odometry, 'odom', queue_size=1, latch=True)
+        elif self.state == self.STATE_CONNECTING:
+            if event == self.__EVENT_CONN_ACK:
+                self.state = self.STATE_CONNECTED
+                event_connected = True
+                # send time
+                self.__send_time_command()
+            elif event == self.__EVENT_TIMEOUT:
+                self.__send_conn_req()
+            elif event == self.__EVENT_QUIT_REQ:
+                self.state = self.STATE_QUIT
 
-        # Setup TF broadcaster
-        self.tf_br = tf.TransformBroadcaster()
+        elif self.state == self.STATE_CONNECTED:
+            if event == self.__EVENT_TIMEOUT:
+                self.__send_conn_req()
+                self.state = self.STATE_CONNECTING
+                event_disconnected = True
+                self.video_enabled = False
+            elif event == self.__EVENT_QUIT_REQ:
+                self.state = self.STATE_QUIT
+                event_disconnected = True
+                self.video_enabled = False
 
-        # Setup ROS subscribers
-        def cb_stop(msg):
-            self.right(0)
-            self.left(0)
-            self.up(0)
-            self.down(0)
-            self.forward(0)
-            self.backward(0)
-            self.clockwise(0)
-            self.counter_clockwise(0)
-        self.sub_stop = self.node.create_subscription(Empty, 'stop', cb_stop, queue_size=10)
+        elif self.state == self.STATE_QUIT:
+            pass
 
-        def cb_takeoff(msg):
-            self.takeoff()
-        self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', cb_takeoff, queue_size=10)
+        if cur_state != self.state:
+            log.info('state transit %s -> %s' % (cur_state, self.state))
+        self.lock.release()
 
-        def cb_land(msg):
-            self.land()
-        self.sub_land = self.node.create_subscription(Empty, 'land', cb_land, queue_size=10)
+        if event_connected:
+            self.__publish(event=self.EVENT_CONNECTED, **args)
+            self.connected.set()
+        if event_disconnected:
+            self.__publish(event=self.EVENT_DISCONNECTED, **args)
+            self.connected.clear()
 
-        def cb_left(msg):
-            self.left(msg.data)
-        self.sub_left = self.node.create_subscription(UInt8, 'left', cb_left, queue_size=10)
+    def __recv_thread(self):
+        sock = self.sock
 
-        def cb_right(msg):
-            self.right(msg.data)
-        self.sub_right = self.node.create_subscription(UInt8, 'right', cb_right, queue_size=10)
-
-        def cb_up(msg):
-            self.up(msg.data)
-        self.sub_up = self.node.create_subscription(UInt8, 'up', cb_up, queue_size=10)
-
-        def cb_down(msg):
-            self.down(msg.data)
-        self.sub_down = self.node.create_subscription(UInt8, 'down', cb_down, queue_size=10)
-
-        def cb_forward(msg):
-            self.forward(msg.data)
-        self.sub_forward = self.node.create_subscription(UInt8, 'forward', cb_forward, queue_size=10)
-
-        def cb_backward(msg):
-            self.backward(msg.data)
-        self.sub_backward = self.node.create_subscription(UInt8, 'backward', cb_backward, queue_size=10)
-
-        def cb_counter_clockwise(msg):
-            self.clockwise(msg.data)
-        self.sub_counter_clockwise = self.node.create_subscription(UInt8, 'counter_clockwise', cb_counter_clockwise, queue_size=10)
-
-        def cb_clockwise(msg):
-            self.clockwise(msg.data)
-        self.sub_clockwise = self.node.create_subscription(UInt8, 'clockwise', cb_clockwise, queue_size=10)
-
-        self.sub_cmd_vel = self.node.create_subscription(Twist, 'cmd_vel', self.cb_cmd_vel, queue_size=10)
-        self.sub_fast_mode = self.node.create_subscription(Bool, 'fast_mode', self.cb_fast_mode)
-        self.sub_throw_takeoff = self.node.create_subscription(Empty, 'throw_takeoff', self.cb_throw_takeoff)
-        self.sub_palm_land = self.node.create_subscription(Empty, 'palm_land', self.cb_palm_land)
-
-        # Subscribe data from drone
-        self.subscribe(self.EVENT_FLIGHT_DATA, self.cb_drone_flight_data)
-        self.subscribe(self.EVENT_LOG_DATA, self.cb_drone_odom_log_data)
-        # self.subscribe(self.EVENT_LIGHT, self.cb_drone_light_data)
-
-        # Frame grabber thread
-        self.frame_thread = threading.Thread(target=self.camera_loop)
-        self.frame_thread.start()
-
-        # Configure video encoder rate
-        self.set_video_encoder_rate(VIDEO_1MBS)
-        self.set_video_mode(False)
-
-        self.node.get_logger().info('Tello: Driver node ready')
-
-    # Camera processing thread method should be called passed to a Thread object
-    def camera_loop(self):
-        # Configure node loop rate
-        rate = self.node.create_rate(30)
-        frame_id = self.tf_drone
-
-        # Drone video capture
-        self.start_video()
-        drone_stream = self.get_video_stream()
-        container = None
-        video_stream = None
-        frame_dropped = 0
-
-        # Drone processing cycle
         while self.state != self.STATE_QUIT:
-            # Try to connect video
-            if container is None:
-                try:
-                    container = av.open(drone_stream)
-                    video_stream = container.streams.video[0]
-                except Exception as err:
-                    container = None
-                    self.node.get_logger().error('Tello: Failed to connect video stream (pyav) - %s' % str(err))
-                    self.terminate(err)
 
-            # Process frames from drone camera
-            else:
-                try:
-                    for packet in container.demux(video_stream):
-                        for frame in packet.decode():
-                            img = frame.to_image()
-                            arr = numpy.array(img)
-                            img_msg = self.bridge.cv2_to_imgmsg(arr, 'rgb8')
-                            img_msg.header.frame_id = frame_id
-                            self.pub_image_raw.publish(img_msg)
+            if self.state == self.STATE_CONNECTED:
+                self.__send_stick_command()  # ignore errors
 
-                    # Reset frame dropped counter
-                    frame_dropped = 0
+            try:
+                data, server = sock.recvfrom(self.udpsize)
+                log.debug("recv: %s" % byte_to_hexstring(data))
+                self.__process_packet(data)
+            except socket.timeout as ex:
+                if self.state == self.STATE_CONNECTED:
+                    log.error('recv: timeout')
+                self.__publish(event=self.__EVENT_TIMEOUT)
+            except Exception as ex:
+                log.error('recv: %s' % str(ex))
+                show_exception(ex)
 
-                    # Camera info message
-                    camera_info_msg = CameraInfo()
-                    camera_info_msg.header.stamp = self.node.get_clock().now()
-                    camera_info_msg.header.frame_id = self.tf_drone
-                    camera_info_msg.width = 960
-                    camera_info_msg.height = 720
-                    camera_info_msg.D = [-0.101373, 0.179355, -0.015361, -0.005923, 0.000000]
-                    camera_info_msg.K = [889.998695, 0.0, 459.681039, 0.0, 896.051429, 328.962342, 0.0, 0.0, 1.0]
-                    camera_info_msg.R = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
-                    camera_info_msg.P = [889.546814, 0.0, 455.164911, 0.0, 0.0, 888.916870, 319.444672, 0.0, 0.0, 0.0, 1.0, 1.0]
-                    self.pub_camera_info.publish(camera_info_msg)
-                except Exception as err:
-                    frame_dropped += 1
-                    # If more than 100 frames dropped assume drone connection was lost
-                    if frame_dropped > 100:
-                        self.node.get_logger().error('Tello: Connection to the drone was lost - %s' % str(err))
-                        self.terminate(err)
+        log.info('exit from the recv thread.')
 
-            rate.sleep()
+    def __video_thread(self):
+        log.info('start video thread')
+        # Create a UDP socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        port = 6038
+        sock.bind(('', port))
+        sock.settimeout(1.0)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 512 * 1024)
+        log.info('video receive buffer size = %d' %
+                 sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF))
 
-    def terminate(self, err):
-        self.node.get_logger().error(str(err))
-        rclpy.shutdown()
-        self.quit()
+        prev_video_data = None
+        prev_ts = None
+        history = []
+        while self.state != self.STATE_QUIT:
+            if not self.video_enabled:
+                time.sleep(1.0)
+                continue
+            try:
+                data, server = sock.recvfrom(self.udpsize)
+                now = datetime.datetime.now()
+                log.debug("video recv: %s %d bytes" % (byte_to_hexstring(data[0:2]), len(data)))
+                show_history = False
 
-    def cb_shutdown(self):
-        self.quit()
+                # check video data loss
+                video_data = VideoData(data)
+                loss = video_data.gap(prev_video_data)
+                if loss != 0:
+                    self.video_data_loss += loss
+                    # enable this line to see packet history
+                    # show_history = True
+                prev_video_data = video_data
 
-        if self.frame_thread is not None:
-            self.frame_thread.join()
+                # check video data interval
+                if prev_ts is not None and 0.1 < (now - prev_ts).total_seconds():
+                    log.info('video recv: %d bytes %02x%02x +%03d' %
+                             (len(data), byte(data[0]), byte(data[1]),
+                              (now - prev_ts).total_seconds() * 1000))
+                prev_ts = now
 
-    # Callback method called when the drone sends light data
-    def cb_drone_light_data(self, event, sender, data, **args):
-        return
-        #print "------------LDATA--------------"
-        #print data.__dict__
-        #print "----------- MVO DATA-----------"
-        #print data.mvo.__dict__
-        #print "----------- IMU DATA-----------"
-        #print data.imu.__dict__
-        #print "-------------------------------"
+                # save video data history
+                history.append([now, len(data), byte(data[0])*256 + byte(data[1])])
+                if 100 < len(history):
+                    history = history[1:]
 
-    # Callback method called when the drone sends odom info
-    def cb_drone_odom_log_data(self, event, sender, data, **args):
-        #print "----------- MVO DATA-----------"
-        #print data.mvo.__dict__
-        #print "Pos X" + str(data.mvo.pos_x) + " Y" + str(data.mvo.pos_y) + " Z" + str(data.mvo.pos_z)
-        #print "Vel X" + str(data.mvo.vel_x) + " Y" + str(data.mvo.vel_y) + " Z" + str(data.mvo.vel_z)
-        #print "----------- IMU DATA-----------"
-        #print data.imu.__dict__
-        #print "----------LOG DATA-------------"
-        #print data.imu.log.__dict__
-        #print "-------------------------------"
+                # show video data history
+                if show_history:
+                    prev_ts = history[0][0]
+                    for i in range(1, len(history)):
+                        [ ts, sz, sn ] = history[i]
+                        print('    %02d:%02d:%02d.%03d %4d bytes %04x +%03d%s' %
+                              (ts.hour, ts.minute, ts.second, ts.microsecond/1000,
+                               sz, sn, (ts - prev_ts).total_seconds()*1000,
+                               (' *' if i == len(history) - 1 else '')))
+                        prev_ts = ts
+                    history = history[-1:]
 
-        # Calculate delta between positions
-        delta = math.sqrt(math.pow(self.pos_x - data.mvo.pos_x, 2) + math.pow(self.pos_y - data.mvo.pos_y, 2) + math.pow(self.pos_z - data.mvo.pos_z, 2))
+                # deliver video frame to subscribers
+                self.__publish(event=self.EVENT_VIDEO_FRAME, data=data[2:])
+                self.__publish(event=self.EVENT_VIDEO_DATA, data=data)
 
-        # Apply correction to position
-        if delta > self.pos_max_delta:
-            self.pos_delta_x += data.mvo.pos_x - self.pos_x
-            self.pos_delta_y += data.mvo.pos_y - self.pos_y
-            self.pos_delta_z += data.mvo.pos_z - self.pos_z
+                # show video frame statistics
+                if self.prev_video_data_time is None:
+                    self.prev_video_data_time = now
+                self.video_data_size += len(data)
+                dur = (now - self.prev_video_data_time).total_seconds()
+                if 2.0 < dur:
+                    log.info(('video data %d bytes %5.1fKB/sec' %
+                              (self.video_data_size, self.video_data_size / dur / 1024)) +
+                             ((' loss=%d' % self.video_data_loss) if self.video_data_loss != 0 else ''))
+                    self.video_data_size = 0
+                    self.prev_video_data_time = now
+                    self.video_data_loss = 0
 
+                    # keep sending start video command
+                    self.__send_start_video()
 
-        # Position of the drone
-        self.pos_x = data.mvo.pos_x
-        self.pos_y = data.mvo.pos_y
-        self.pos_z = data.mvo.pos_z
+            except socket.timeout as ex:
+                log.error('video recv: timeout')
+                self.start_video()
+                data = None
+            except Exception as ex:
+                log.error('video recv: %s' % str(ex))
+                show_exception(ex)
 
-        pos_x = self.pos_x - self.pos_delta_x
-        pos_y = self.pos_y - self.pos_delta_y
-        pos_z = self.pos_z - self.pos_delta_z
-
-
-        quaternion = (data.imu.q0, data.imu.q1, data.imu.q2, data.imu.q3)
-        euler = tf.transformations.euler_from_quaternion(quaternion)
-        roll = euler[0]
-
-        quaternion_roll = tf.transformations.quaternion_from_euler(0.0, 0.0, -roll)
-
-        #print "----------CALCULATED POSITION-------------"
-        #print "Euler Roll:" + str(euler[0]) + " Pitch: " + str(euler[1]) + "Yaw: " + str(euler[2])
-        #print "Delta X" + str(self.pos_delta_x) + " Y" + str(self.pos_delta_y) + " Z" + str(self.pos_delta_z)
-        #print "MVO Position X" + str(data.mvo.pos_x) + " Y" + str(data.mvo.pos_y) + " Z" + str(data.mvo.pos_z)
-        #print "Calculated Position X" + str(pos_x) + " Y" + str(pos_y) + " Z" + str(pos_z)
-        #print "------------------------------------------"
-
-        # Publish drone transform
-        self.tf_br.sendTransform((pos_x, pos_y, pos_z), (0.0, 0.0, 0.0, 1.0), self.node.get_clock().now(), self.tf_base, self.tf_drone)
-        self.tf_br.sendTransform((0.0, 0.0, 0.0), (quaternion_roll[0], quaternion_roll[1], quaternion_roll[2], quaternion_roll[3]), self.node.get_clock().now(), self.tf_drone, self.tf_drone_body)
-
-        # Publish odom data
-        odom_msg = Odometry()
-        odom_msg.header.stamp = self.node.get_clock().now()
-        odom_msg.header.frame_id = self.tf_base
-        odom_msg.pose.pose.position.x = pos_x
-        odom_msg.pose.pose.position.y = pos_y
-        odom_msg.pose.pose.position.z = pos_z
-        odom_msg.twist.twist.linear.x = data.mvo.vel_x
-        odom_msg.twist.twist.linear.y = data.mvo.vel_y
-        odom_msg.twist.twist.linear.z = data.mvo.vel_z
-        self.pub_odom.publish(odom_msg)
-
-        # Publish IMU data
-        imu_msg = Imu()
-        imu_msg.header.stamp = self.node.get_clock().now()
-        imu_msg.header.frame_id = self.tf_drone
-        imu_msg.header.seq = count = data.count
-        imu_msg.linear_acceleration.x = data.imu.acc_x
-        imu_msg.linear_acceleration.y = data.imu.acc_y
-        imu_msg.linear_acceleration.z = data.imu.acc_z
-        imu_msg.angular_velocity.x = data.imu.gyro_x
-        imu_msg.angular_velocity.y = data.imu.gyro_y
-        imu_msg.angular_velocity.z = data.imu.gyro_z
-        imu_msg.orientation.x = quaternion_roll[0]
-        imu_msg.orientation.y = quaternion_roll[1]
-        imu_msg.orientation.z = quaternion_roll[2]
-        imu_msg.orientation.w = quaternion_roll[3]
-        self.pub_imu.publish(imu_msg)
-
-    # Callback called every time the drone sends information
-    def cb_drone_flight_data(self, event, sender, data, **args):
-        # Publish battery message
-        battery_msg = BatteryState()
-        battery_msg.percentage = data.battery_percentage
-        battery_msg.voltage = 3.8
-        battery_msg.design_capacity = 1.1
-        battery_msg.present = True
-        battery_msg.power_supply_technology = 2 # POWER_SUPPLY_TECHNOLOGY_LION
-        battery_msg.power_supply_status = 2 # POWER_SUPPLY_STATUS_DISCHARGING
-        self.pub_battery.publish(battery_msg)
-
-        # Publish temperature data
-        temperature_msg = Temperature()
-        temperature_msg.header.frame_id = self.tf_drone
-        temperature_msg.temperature = data.temperature_height
-        self.pub_temperature.publish(temperature_msg)
-
-        # Publish flight data
-        msg = FlightStatus()
-        msg.imu_state = data.imu_state
-        msg.pressure_state = data.pressure_state
-        msg.down_visual_state = data.down_visual_state
-        msg.gravity_state = data.gravity_state
-        msg.wind_state = data.wind_state
-        msg.drone_hover = data.drone_hover
-        msg.factory_mode = data.factory_mode
-        msg.imu_calibration_state = data.imu_calibration_state
-        msg.fly_mode = data.fly_mode #1 Landed | 6 Flying
-        msg.camera_state = data.camera_state
-        msg.electrical_machinery_state = data.electrical_machinery_state
-
-        msg.front_in = data.front_in
-        msg.front_out = data.front_out
-        msg.front_lsc = data.front_lsc
-
-        msg.power_state = data.power_state
-        msg.battery_state = data.battery_state
-        msg.battery_low = data.battery_low
-        msg.battery_lower = data.battery_lower
-        msg.battery_percentage = data.battery_percentage
-        msg.drone_battery_left = data.drone_battery_left
-
-        msg.light_strength = data.light_strength
-
-        msg.fly_speed = data.fly_speed
-        msg.east_speed = data.east_speed
-        msg.north_speed = data.north_speed
-        msg.ground_speed = data.ground_speed
-        msg.fly_time = data.fly_time
-        msg.drone_fly_time_left = data.drone_fly_time_left
-
-        msg.wifi_strength = data.wifi_strength
-        msg.wifi_disturb = data.wifi_disturb
-
-        msg.height = data.height
-        msg.temperature_height = data.temperature_height
-
-        self.pub_status.publish(msg)
-
-    # Callback for the palm landing functionality subscriber
-    def cb_palm_land(self, msg):
-        self.palm_land()
-
-    # Call used to set the fast mode value, should be used carefully to avoid damaging the drone.
-    def cb_fast_mode(self, msg):
-        self.fast_mode = msg.data
-
-    # Callback for cmd_vel messages received use to control the drone "analogically"
-    #
-    # This method of controls allow for more precision in the drone control.
-    def cb_cmd_vel(self, msg):
-        self.set_pitch(msg.linear.x)
-        self.set_roll(-msg.linear.y)
-        self.set_throttle(msg.linear.z)
-        self.set_yaw(-msg.angular.z)
-
-    # Callback for the throw takeoff functionality
-    def cb_throw_takeoff(self, msg):
-        self.throw_and_go()
-
-
-def main(args=None):
-    rclpy.init(args=args)
-
-    node = rclpy.create_node('tello')
-    drone = TelloNode(node)
-
-    while rclpy.ok() and drone.state != drone.STATE_QUIT:
-        print('running')
-
-    drone.cb_shutdown()
-    node.destroy_node()
-    rclpy.shutdown()
+        log.info('exit from the video thread.')
 
 if __name__ == '__main__':
-    main()
+    print('You can use test.py for testing.')
