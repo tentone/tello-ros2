@@ -7,11 +7,12 @@ import tf
 import tellopy
 
 from tello.msg import FlightStatus
-from std_msgs.msg import Empty, UInt8, UInt8, Bool, UInt8MultiArray
+
+from std_msgs.msg import Empty, UInt8, UInt8, Bool
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
 
 # Video rates possible for the tello drone
 VIDEO_AUTO = 0
@@ -24,15 +25,17 @@ VIDEO_2_5MBS = 4
 #
 # Can be configured to be used by multiple drones, publishes, all data collected from the drone and provides control using ROS messages.
 class TelloNode(tellopy.Tello):
-    def __init__(self):
+    def __init__(self, node):
+        self.node = node
+
         # Connection parameters
-        self.connect_timeout_sec = float(rclpy.get_param('~connect_timeout_sec', 10.0))
-        self.tello_ip = rclpy.get_param('~tello_ip', '192.168.10.1')
+        self.connect_timeout_sec = float(node.get_param('~connect_timeout_sec', 10.0))
+        self.tello_ip = node.get_param('~tello_ip', '192.168.10.1')
 
         # TF parameters
-        self.tf_base = rclpy.get_param('~tf_base', 'map')
-        self.tf_drone = rclpy.get_param('~tf_drone', 'drone')
-        self.tf_drone_body = rclpy.get_param('~tf_drone_body', 'body')
+        self.tf_base = node.get_param('~tf_base', 'map')
+        self.tf_drone = node.get_param('~tf_drone', 'drone')
+        self.tf_drone_body = node.get_param('~tf_drone_body', 'body')
 
         # OpenCV bridge
         self.bridge = CvBridge()
@@ -41,7 +44,7 @@ class TelloNode(tellopy.Tello):
         super(TelloNode, self).__init__(self.tello_ip)
 
         # Connect to drone
-        rclpy.loginfo('Tello: Connecting to drone %s', self.tello_addr)
+        self.node.get_logger().info('Tello: Connecting to drone %s', self.tello_addr)
         self.connect()
 
         try:
@@ -50,8 +53,7 @@ class TelloNode(tellopy.Tello):
             self.terminate(err)
             return
 
-        rclpy.loginfo('Tello: Connected to drone')
-        rclpy.on_shutdown(self.cb_shutdown)
+        self.node.get_logger().info('Tello: Connected to drone')
 
         # Max position delta without applying correction
         self.pos_max_delta = 2.0
@@ -70,13 +72,13 @@ class TelloNode(tellopy.Tello):
         self.cfg = None
 
         # Setup ROS publishers
-        self.pub_image_raw = rclpy.Publisher('image_raw', Image, queue_size=1)
-        self.pub_camera_info = rclpy.Publisher('camera_info', CameraInfo, queue_size=1, latch=True)
-        self.pub_status = rclpy.Publisher('status', FlightStatus, queue_size=1, latch=True)
-        self.pub_imu = rclpy.Publisher('imu', Imu, queue_size=1, latch=True)
-        self.pub_battery = rclpy.Publisher('battery', BatteryState, queue_size=1, latch=True)
-        self.pub_temperature = rclpy.Publisher('temperature', Temperature, queue_size=1, latch=True)
-        self.pub_odom = rclpy.Publisher('odom', Odometry, queue_size=1, latch=True)
+        self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', queue_size=1)
+        self.pub_camera_info = self.node.create_publisher(CameraInfo, 'camera_info', queue_size=1, latch=True)
+        self.pub_status = self.node.create_publisher(FlightStatus, 'status', queue_size=1, latch=True)
+        self.pub_imu = self.node.create_publisher(Imu, 'imu', queue_size=1, latch=True)
+        self.pub_battery = self.node.create_publisher(BatteryState, 'battery', queue_size=1, latch=True)
+        self.pub_temperature = self.node.create_publisher(Temperature, 'temperature', queue_size=1, latch=True)
+        self.pub_odom = self.node.create_publisher(Odometry, 'odom', queue_size=1, latch=True)
 
         # Setup TF broadcaster
         self.tf_br = tf.TransformBroadcaster()
@@ -91,52 +93,52 @@ class TelloNode(tellopy.Tello):
             self.backward(0)
             self.clockwise(0)
             self.counter_clockwise(0)
-        self.sub_stop = rclpy.Subscriber('stop', Empty, cb_stop, queue_size=10)
+        self.sub_stop = self.node.create_subscription(Empty, 'stop', cb_stop, queue_size=10)
 
         def cb_takeoff(msg):
             self.takeoff()
-        self.sub_takeoff = rclpy.Subscriber('takeoff', Empty, cb_takeoff, queue_size=10)
+        self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', cb_takeoff, queue_size=10)
 
         def cb_land(msg):
             self.land()
-        self.sub_land = rclpy.Subscriber('land', Empty, cb_land, queue_size=10)
+        self.sub_land = self.node.create_subscription(Empty, 'land', cb_land, queue_size=10)
 
         def cb_left(msg):
             self.left(msg.data)
-        self.sub_left = rclpy.Subscriber('left', UInt8, cb_left, queue_size=10)
+        self.sub_left = self.node.create_subscription(UInt8, 'left', cb_left, queue_size=10)
 
         def cb_right(msg):
             self.right(msg.data)
-        self.sub_right = rclpy.Subscriber('right', UInt8, cb_right, queue_size=10)
+        self.sub_right = self.node.create_subscription(UInt8, 'right', cb_right, queue_size=10)
 
         def cb_up(msg):
             self.up(msg.data)
-        self.sub_up = rclpy.Subscriber('up', UInt8, cb_up, queue_size=10)
+        self.sub_up = self.node.create_subscription(UInt8, 'up', cb_up, queue_size=10)
 
         def cb_down(msg):
             self.down(msg.data)
-        self.sub_down = rclpy.Subscriber('down', UInt8, cb_down, queue_size=10)
+        self.sub_down = self.node.create_subscription(UInt8, 'down', cb_down, queue_size=10)
 
         def cb_forward(msg):
             self.forward(msg.data)
-        self.sub_forward = rclpy.Subscriber('forward', UInt8, cb_forward, queue_size=10)
+        self.sub_forward = self.node.create_subscription(UInt8, 'forward', cb_forward, queue_size=10)
 
         def cb_backward(msg):
             self.backward(msg.data)
-        self.sub_backward = rclpy.Subscriber('backward', UInt8, cb_backward, queue_size=10)
+        self.sub_backward = self.node.create_subscription(UInt8, 'backward', cb_backward, queue_size=10)
 
         def cb_counter_clockwise(msg):
             self.clockwise(msg.data)
-        self.sub_counter_clockwise = rclpy.Subscriber('counter_clockwise', UInt8, cb_counter_clockwise, queue_size=10)
+        self.sub_counter_clockwise = self.node.create_subscription(UInt8, 'counter_clockwise', cb_counter_clockwise, queue_size=10)
 
         def cb_clockwise(msg):
             self.clockwise(msg.data)
-        self.sub_clockwise = rclpy.Subscriber('clockwise', UInt8, cb_clockwise, queue_size=10)
+        self.sub_clockwise = self.node.create_subscription(UInt8, 'clockwise', cb_clockwise, queue_size=10)
 
-        self.sub_cmd_vel = rclpy.Subscriber('cmd_vel', Twist, self.cb_cmd_vel, queue_size=10)
-        self.sub_fast_mode = rclpy.Subscriber('fast_mode', Bool, self.cb_fast_mode)
-        self.sub_throw_takeoff = rclpy.Subscriber('throw_takeoff', Empty, self.cb_throw_takeoff)
-        self.sub_palm_land = rclpy.Subscriber('palm_land', Empty, self.cb_palm_land)
+        self.sub_cmd_vel = self.node.create_subscription(Twist, 'cmd_vel', self.cb_cmd_vel, queue_size=10)
+        self.sub_fast_mode = self.node.create_subscription(Bool, 'fast_mode', self.cb_fast_mode)
+        self.sub_throw_takeoff = self.node.create_subscription(Empty, 'throw_takeoff', self.cb_throw_takeoff)
+        self.sub_palm_land = self.node.create_subscription(Empty, 'palm_land', self.cb_palm_land)
 
         # Subscribe data from drone
         self.subscribe(self.EVENT_FLIGHT_DATA, self.cb_drone_flight_data)
@@ -151,12 +153,12 @@ class TelloNode(tellopy.Tello):
         self.set_video_encoder_rate(VIDEO_1MBS)
         self.set_video_mode(False)
 
-        rclpy.loginfo('Tello: Driver node ready')
+        self.node.get_logger().info('Tello: Driver node ready')
 
     # Camera processing thread method should be called passed to a Thread object
     def camera_loop(self):
         # Configure node loop rate
-        rate = rclpy.Rate(30)
+        rate = self.node.create_rate(30)
         frame_id = self.tf_drone
 
         # Drone video capture
@@ -175,7 +177,7 @@ class TelloNode(tellopy.Tello):
                     video_stream = container.streams.video[0]
                 except Exception as err:
                     container = None
-                    rclpy.logerr('Tello: Failed to connect video stream (pyav) - %s' % str(err))
+                    self.node.get_logger().error('Tello: Failed to connect video stream (pyav) - %s' % str(err))
                     self.terminate(err)
 
             # Process frames from drone camera
@@ -194,7 +196,7 @@ class TelloNode(tellopy.Tello):
 
                     # Camera info message
                     camera_info_msg = CameraInfo()
-                    camera_info_msg.header.stamp = rclpy.Time.now()
+                    camera_info_msg.header.stamp = self.node.get_clock().now()
                     camera_info_msg.header.frame_id = self.tf_drone
                     camera_info_msg.width = 960
                     camera_info_msg.height = 720
@@ -207,14 +209,14 @@ class TelloNode(tellopy.Tello):
                     frame_dropped += 1
                     # If more than 100 frames dropped assume drone connection was lost
                     if frame_dropped > 100:
-                        rclpy.logerr('Tello: Connection to the drone was lost - %s' % str(err))
+                        self.node.get_logger().error('Tello: Connection to the drone was lost - %s' % str(err))
                         self.terminate(err)
 
             rate.sleep()
 
     def terminate(self, err):
-        rclpy.logerr(str(err))
-        rclpy.signal_shutdown(str(err))
+        self.node.get_logger().error(str(err))
+        rclpy.shutdown()
         self.quit()
 
     def cb_shutdown(self):
@@ -280,12 +282,12 @@ class TelloNode(tellopy.Tello):
         #print "------------------------------------------"
 
         # Publish drone transform
-        self.tf_br.sendTransform((pos_x, pos_y, pos_z), (0.0, 0.0, 0.0, 1.0), rclpy.Time.now(), self.tf_base, self.tf_drone)
-        self.tf_br.sendTransform((0.0, 0.0, 0.0), (quaternion_roll[0], quaternion_roll[1], quaternion_roll[2], quaternion_roll[3]), rclpy.Time.now(), self.tf_drone, self.tf_drone_body)
+        self.tf_br.sendTransform((pos_x, pos_y, pos_z), (0.0, 0.0, 0.0, 1.0), self.node.get_clock().now(), self.tf_base, self.tf_drone)
+        self.tf_br.sendTransform((0.0, 0.0, 0.0), (quaternion_roll[0], quaternion_roll[1], quaternion_roll[2], quaternion_roll[3]), self.node.get_clock().now(), self.tf_drone, self.tf_drone_body)
 
         # Publish odom data
         odom_msg = Odometry()
-        odom_msg.header.stamp = rclpy.Time.now()
+        odom_msg.header.stamp = self.node.get_clock().now()
         odom_msg.header.frame_id = self.tf_base
         odom_msg.pose.pose.position.x = pos_x
         odom_msg.pose.pose.position.y = pos_y
@@ -297,7 +299,7 @@ class TelloNode(tellopy.Tello):
 
         # Publish IMU data
         imu_msg = Imu()
-        imu_msg.header.stamp = rclpy.Time.now()
+        imu_msg.header.stamp = self.node.get_clock().now()
         imu_msg.header.frame_id = self.tf_drone
         imu_msg.header.seq = count = data.count
         imu_msg.linear_acceleration.x = data.imu.acc_x
@@ -397,12 +399,13 @@ class TelloNode(tellopy.Tello):
 def main(args=None):
     rclpy.init(args=args)
 
-    drone = TelloNode()
+    node = rclpy.create_node('tello')
+    drone = TelloNode(node)
 
     while rclpy.ok() and drone.state != drone.STATE_QUIT:
         print('running')
-        rclpy.spin()
 
+    drone.cb_shutdown()
     node.destroy_node()
     rclpy.shutdown()
 
