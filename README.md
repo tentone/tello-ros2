@@ -39,7 +39,23 @@ ros2 pkg create --build-type ament_python --node-name <node_name> <package_name>
 ##### Tools
 
 - `rqt_topic` Used to monitor topics and their values in a list
+- `rqt_graph` Draw the graph of connection between the currently active nodes and explore communication between them
 - `rviz` Visualize topics in 3D space.
+
+##### Bags
+
+- Bags can be used to record data from topics that can be later replayed for offline testing. Bags can be manipulated using the `ros2 bag` command. To 
+
+```bash
+# Record a bag containing data from some topics into a file
+ros2 bag record -o <bag_file_name> /turtle1/cmd_vel /turtle1/pose ...
+
+# Check the content of a bag run the command
+ros2 bag info <bag_file_name>
+
+# Replay the content of some topics recorded into a bag file
+ ros2 bag play <bag_file_name>
+```
 
 ##### Camera calibration
 
@@ -69,7 +85,7 @@ wsl -l -v
   - "Disable access control" checked
 - Create a shortcut for VcXSrv with the following parameters
 
-```
+```powershell
 "C:\Program Files\VcXsrv\vcxsrv.exe" :0 -ac -terminate -lesspointer -multiwindow -clipboard -wgl -dpi auto
 ```
 
