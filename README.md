@@ -64,6 +64,14 @@ ros2 bag info <bag_file_name>
 
 
 
+### Linux 
+
+- When installing on ubuntu based distros it might be required to change the distro codename so that the `lsb_release -cs` command returns the correct ubuntu base distribution.
+- To change the output of the `lsb_release` command edit the `/etc/os-release` file. For ubuntu 20.04 the codename should be `focal`.
+- Edit the file to contain the value `UBUNTU_CODENAME=focal`.
+
+
+
 ### Windows Subsystem for Linux (WSL)
 
 - Install WSL2 from the windows store or using the commands bellow, install Ubuntu 20.04 as the SO over the WSL overlay.
