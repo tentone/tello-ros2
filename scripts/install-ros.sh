@@ -75,3 +75,7 @@ sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_rel
 wget https://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
 apt update
 apt install gazebo11 libgazebo11-dev
+
+# Fix permissions
+rosdep fix-permissions
+rosdep update
