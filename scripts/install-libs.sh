@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 echo " - Tello ROS Node"
 apt install libasio-dev ros-foxy-cv-bridge ros-foxy-camera-calibration-parsers
 pip3 install empy lark
