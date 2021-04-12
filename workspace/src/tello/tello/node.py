@@ -4,12 +4,11 @@ import threading
 import numpy
 
 from . import tello
-from tello.msg import FlightStatus
+from tellopy_msg.msg import FlightStatus
 import av
-import tf
 
-
-
+import tf_conversions
+import tf2_ros
 
 from std_msgs.msg import Empty, UInt8, UInt8, Bool
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
@@ -91,7 +90,7 @@ class TelloNode(tello.Tello):
         self.pub_odom = self.node.create_publisher(Odometry, 'odom', queue_size=1, latch=True)
 
         # Setup TF broadcaster
-        self.tf_br = tf.TransformBroadcaster()
+        self.tf_br = tf2_ros.TransformBroadcaster()
 
         # Setup ROS subscribers
         def cb_stop(msg):
@@ -280,10 +279,10 @@ class TelloNode(tello.Tello):
 
 
         quaternion = (data.imu.q0, data.imu.q1, data.imu.q2, data.imu.q3)
-        euler = tf.transformations.euler_from_quaternion(quaternion)
+        euler = tf_conversions.transformations.euler_from_quaternion(quaternion)
         roll = euler[0]
 
-        quaternion_roll = tf.transformations.quaternion_from_euler(0.0, 0.0, -roll)
+        quaternion_roll = tf_conversions.transformations.quaternion_from_euler(0.0, 0.0, -roll)
 
         #print "----------CALCULATED POSITION-------------"
         #print "Euler Roll:" + str(euler[0]) + " Pitch: " + str(euler[1]) + "Yaw: " + str(euler[2])

@@ -11,8 +11,8 @@ def generate_launch_description():
             name='control'
         ),
         Node(
-            package='testpy',
-            executable='testpy',
+            package='tello',
+            executable='tello',
             namespace='/',
             name='tello'
         )
