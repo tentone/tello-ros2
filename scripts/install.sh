@@ -71,9 +71,10 @@ source ~/.bashrc
 # Install project dependencies
 echo " - Python dependencies"
 pip3 install catkin_pkg rospkg av
+apt install python3-tf*
 
 echo " - CPP dependencies"
-apt install ros-foxy-ament-cmake* ros-foxy-tf2* ros-foxy-rclcpp*
+apt install ros-foxy-ament-cmake* ros-foxy-tf2* ros-foxy-rclcpp* ros-foxy-rosgraph*
 
 echo " - Tools"
 sudo apt install ros-foxy-rviz* ros-foxy-rqt*
