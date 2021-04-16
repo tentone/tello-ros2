@@ -44,7 +44,7 @@ ros2 pkg create --build-type ament_python --node-name <node_name> <package_name>
 
 ##### Bags
 
-- Bags can be used to record data from topics that can be later replayed for offline testing. Bags can be manipulated using the `ros2 bag` command. To 
+- Bags can be used to record data from topics that can be later replayed for off-line testing. Bags can be manipulated using the `ros2 bag` command. To 
 
 ```bash
 # Record a bag containing data from some topics into a file
@@ -55,6 +55,12 @@ ros2 bag info <bag_file_name>
 
 # Replay the content of some topics recorded into a bag file
  ros2 bag play <bag_file_name>
+```
+
+- To play ROS 1 bags in ROS 2 you will need to first install ROS 1, and the ROS bag adapter plugin. The the bags can be run using the command.
+
+```bash
+ros2 bag info -s rosbag_v2 <path_to_bagfile>
 ```
 
 ##### Camera calibration
