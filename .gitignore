@@ -2,17 +2,14 @@
 log/
 
 workspace/install/
+*.pyc
+*.bag
 
 workspace/build/
 
 workspace/src/__pycache__/
-
-*.pyc
-
 workspace/src/build/
-
 workspace/src/lib/
-
 workspace/src/install/
 
 opencv/
