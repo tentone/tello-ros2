@@ -311,7 +311,6 @@ class TelloNode(tello.Tello):
         imu_msg = Imu()
         imu_msg.header.stamp = self.node.get_clock().now().to_msg()
         imu_msg.header.frame_id = self.tf_drone
-        imu_msg.header.seq = count = data.count
         imu_msg.linear_acceleration.x = data.imu.acc_x
         imu_msg.linear_acceleration.y = data.imu.acc_y
         imu_msg.linear_acceleration.z = data.imu.acc_z
@@ -380,7 +379,7 @@ class TelloNode(tello.Tello):
         msg.wifi_disturb = data.wifi_disturb
 
         msg.height = float(data.height)
-        msg.temperature_height = data.temperature_height
+        msg.temperature_height = float(data.temperature_height)
 
         self.pub_status.publish(msg)
 
