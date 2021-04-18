@@ -1,8 +1,9 @@
-bool imu_state
-bool pressure_state
-bool down_visual_state
-bool gravity_state
-bool wind_state
+uint8 imu_state
+uint8 pressure_state
+uint8 down_visual_state
+uint8 gravity_state
+uint8 wind_state
+
 int32 drone_hover
 int32 factory_mode
 uint8 imu_calibration_state
@@ -10,14 +11,15 @@ uint8 fly_mode #1 Landed | 6 Flying
 uint8 camera_state
 uint8 electrical_machinery_state
 
-bool front_in
-bool front_out
-bool front_lsc
+uint8 front_in
+uint8 front_out
+uint8 front_lsc
 
-bool power_state
-bool battery_state
-bool battery_low
-bool battery_lower
+uint8 power_state
+uint8 battery_state
+uint8 battery_low
+uint8 battery_lower
+
 int32 battery_percentage
 int32 drone_battery_left
 

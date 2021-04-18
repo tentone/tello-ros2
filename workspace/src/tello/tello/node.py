@@ -8,7 +8,6 @@ from tellopy_msg.msg import FlightStatus
 import av
 
 import tf2_ros
-import tf_conversions
 
 from std_msgs.msg import Empty, UInt8, UInt8, Bool
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
@@ -81,16 +80,16 @@ class TelloNode(tello.Tello):
         self.cfg = None
 
         # Setup ROS publishers
-        self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', queue_size=1)
-        self.pub_camera_info = self.node.create_publisher(CameraInfo, 'camera_info', queue_size=1, latch=True)
-        self.pub_status = self.node.create_publisher(FlightStatus, 'status', queue_size=1, latch=True)
-        self.pub_imu = self.node.create_publisher(Imu, 'imu', queue_size=1, latch=True)
-        self.pub_battery = self.node.create_publisher(BatteryState, 'battery', queue_size=1, latch=True)
-        self.pub_temperature = self.node.create_publisher(Temperature, 'temperature', queue_size=1, latch=True)
-        self.pub_odom = self.node.create_publisher(Odometry, 'odom', queue_size=1, latch=True)
+        self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', 10)
+        self.pub_camera_info = self.node.create_publisher(CameraInfo, 'camera_info', 10)
+        self.pub_status = self.node.create_publisher(FlightStatus, 'status', 10)
+        self.pub_imu = self.node.create_publisher(Imu, 'imu', 10)
+        self.pub_battery = self.node.create_publisher(BatteryState, 'battery', 10)
+        self.pub_temperature = self.node.create_publisher(Temperature, 'temperature', 10)
+        self.pub_odom = self.node.create_publisher(Odometry, 'odom', 10)
 
         # Setup TF broadcaster
-        self.tf_br = tf2_ros.TransformBroadcaster()
+        self.tf_br = tf2_ros.TransformBroadcaster(self.node)
 
         # Setup ROS subscribers
         def cb_stop(msg):
@@ -103,52 +102,52 @@ class TelloNode(tello.Tello):
             self.clockwise(0)
             self.counter_clockwise(0)
         
-        self.sub_stop = self.node.create_subscription(Empty, 'stop', cb_stop, queue_size=10)
+        self.sub_stop = self.node.create_subscription(Empty, 'stop', cb_stop, 10)
 
         def cb_takeoff(msg):
             self.takeoff()
-        self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', cb_takeoff, queue_size=10)
+        self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', cb_takeoff, 10)
 
         def cb_land(msg):
             self.land()
-        self.sub_land = self.node.create_subscription(Empty, 'land', cb_land, queue_size=10)
+        self.sub_land = self.node.create_subscription(Empty, 'land', cb_land, 10)
 
         def cb_left(msg):
             self.left(msg.data)
-        self.sub_left = self.node.create_subscription(UInt8, 'left', cb_left, queue_size=10)
+        self.sub_left = self.node.create_subscription(UInt8, 'left', cb_left, 10)
 
         def cb_right(msg):
             self.right(msg.data)
-        self.sub_right = self.node.create_subscription(UInt8, 'right', cb_right, queue_size=10)
+        self.sub_right = self.node.create_subscription(UInt8, 'right', cb_right, 10)
 
         def cb_up(msg):
             self.up(msg.data)
-        self.sub_up = self.node.create_subscription(UInt8, 'up', cb_up, queue_size=10)
+        self.sub_up = self.node.create_subscription(UInt8, 'up', cb_up, 10)
 
         def cb_down(msg):
             self.down(msg.data)
-        self.sub_down = self.node.create_subscription(UInt8, 'down', cb_down, queue_size=10)
+        self.sub_down = self.node.create_subscription(UInt8, 'down', cb_down, 10)
 
         def cb_forward(msg):
             self.forward(msg.data)
-        self.sub_forward = self.node.create_subscription(UInt8, 'forward', cb_forward, queue_size=10)
+        self.sub_forward = self.node.create_subscription(UInt8, 'forward', cb_forward, 10)
 
         def cb_backward(msg):
             self.backward(msg.data)
-        self.sub_backward = self.node.create_subscription(UInt8, 'backward', cb_backward, queue_size=10)
+        self.sub_backward = self.node.create_subscription(UInt8, 'backward', cb_backward, 10)
 
         def cb_counter_clockwise(msg):
             self.clockwise(msg.data)
-        self.sub_counter_clockwise = self.node.create_subscription(UInt8, 'counter_clockwise', cb_counter_clockwise, queue_size=10)
+        self.sub_counter_clockwise = self.node.create_subscription(UInt8, 'counter_clockwise', cb_counter_clockwise, 10)
 
         def cb_clockwise(msg):
             self.clockwise(msg.data)
-        self.sub_clockwise = self.node.create_subscription(UInt8, 'clockwise', cb_clockwise, queue_size=10)
+        self.sub_clockwise = self.node.create_subscription(UInt8, 'clockwise', cb_clockwise, 10)
 
-        self.sub_cmd_vel = self.node.create_subscription(Twist, 'cmd_vel', self.cb_cmd_vel, queue_size=10)
-        self.sub_fast_mode = self.node.create_subscription(Bool, 'fast_mode', self.cb_fast_mode)
-        self.sub_throw_takeoff = self.node.create_subscription(Empty, 'throw_takeoff', self.cb_throw_takeoff)
-        self.sub_palm_land = self.node.create_subscription(Empty, 'palm_land', self.cb_palm_land)
+        self.sub_cmd_vel = self.node.create_subscription(Twist, 'cmd_vel', self.cb_cmd_vel, 10)
+        self.sub_fast_mode = self.node.create_subscription(Bool, 'fast_mode', self.cb_fast_mode, 10)
+        self.sub_throw_takeoff = self.node.create_subscription(Empty, 'throw_takeoff', self.cb_throw_takeoff, 10)
+        self.sub_palm_land = self.node.create_subscription(Empty, 'palm_land', self.cb_palm_land, 10)
 
         # Subscribe data from drone
         self.subscribe(self.EVENT_FLIGHT_DATA, self.cb_drone_flight_data)
@@ -206,7 +205,7 @@ class TelloNode(tello.Tello):
 
                     # Camera info message
                     camera_info_msg = CameraInfo()
-                    camera_info_msg.header.stamp = self.node.get_clock().now()
+                    camera_info_msg.header.stamp = self.node.get_clock().now().to_msg()
                     camera_info_msg.header.frame_id = self.tf_drone
                     camera_info_msg.width = 960
                     camera_info_msg.height = 720
@@ -279,10 +278,11 @@ class TelloNode(tello.Tello):
 
 
         quaternion = (data.imu.q0, data.imu.q1, data.imu.q2, data.imu.q3)
-        euler = tf_conversions.transformations.euler_from_quaternion(quaternion)
-        roll = euler[0]
+        
+        # euler = tf_conversions.transformations.euler_from_quaternion(quaternion)
+        # roll = euler[0]
 
-        quaternion_roll = tf_conversions.transformations.quaternion_from_euler(0.0, 0.0, -roll)
+        # quaternion_roll = tf_conversions.transformations.quaternion_from_euler(0.0, 0.0, -roll)
 
         #print "----------CALCULATED POSITION-------------"
         #print "Euler Roll:" + str(euler[0]) + " Pitch: " + str(euler[1]) + "Yaw: " + str(euler[2])
@@ -292,12 +292,12 @@ class TelloNode(tello.Tello):
         #print "------------------------------------------"
 
         # Publish drone transform
-        self.tf_br.sendTransform((pos_x, pos_y, pos_z), (0.0, 0.0, 0.0, 1.0), self.node.get_clock().now(), self.tf_base, self.tf_drone)
-        self.tf_br.sendTransform((0.0, 0.0, 0.0), (quaternion_roll[0], quaternion_roll[1], quaternion_roll[2], quaternion_roll[3]), self.node.get_clock().now(), self.tf_drone, self.tf_drone_body)
+        # self.tf_br.sendTransform((pos_x, pos_y, pos_z), (0.0, 0.0, 0.0, 1.0), self.node.get_clock().now(), self.tf_base, self.tf_drone)
+        # self.tf_br.sendTransform((0.0, 0.0, 0.0), (quaternion_roll[0], quaternion_roll[1], quaternion_roll[2], quaternion_roll[3]), self.node.get_clock().now(), self.tf_drone, self.tf_drone_body)
 
         # Publish odom data
         odom_msg = Odometry()
-        odom_msg.header.stamp = self.node.get_clock().now()
+        odom_msg.header.stamp = self.node.get_clock().now().to_msg()
         odom_msg.header.frame_id = self.tf_base
         odom_msg.pose.pose.position.x = pos_x
         odom_msg.pose.pose.position.y = pos_y
@@ -309,7 +309,7 @@ class TelloNode(tello.Tello):
 
         # Publish IMU data
         imu_msg = Imu()
-        imu_msg.header.stamp = self.node.get_clock().now()
+        imu_msg.header.stamp = self.node.get_clock().now().to_msg()
         imu_msg.header.frame_id = self.tf_drone
         imu_msg.header.seq = count = data.count
         imu_msg.linear_acceleration.x = data.imu.acc_x
@@ -318,17 +318,17 @@ class TelloNode(tello.Tello):
         imu_msg.angular_velocity.x = data.imu.gyro_x
         imu_msg.angular_velocity.y = data.imu.gyro_y
         imu_msg.angular_velocity.z = data.imu.gyro_z
-        imu_msg.orientation.x = quaternion_roll[0]
-        imu_msg.orientation.y = quaternion_roll[1]
-        imu_msg.orientation.z = quaternion_roll[2]
-        imu_msg.orientation.w = quaternion_roll[3]
+        # imu_msg.orientation.x = quaternion_roll[0]
+        # imu_msg.orientation.y = quaternion_roll[1]
+        # imu_msg.orientation.z = quaternion_roll[2]
+        # imu_msg.orientation.w = quaternion_roll[3]
         self.pub_imu.publish(imu_msg)
 
     # Callback called every time the drone sends information
     def cb_drone_flight_data(self, event, sender, data, **args):
         # Publish battery message
         battery_msg = BatteryState()
-        battery_msg.percentage = data.battery_percentage
+        battery_msg.percentage = float(data.battery_percentage)
         battery_msg.voltage = 3.8
         battery_msg.design_capacity = 1.1
         battery_msg.present = True
@@ -339,7 +339,7 @@ class TelloNode(tello.Tello):
         # Publish temperature data
         temperature_msg = Temperature()
         temperature_msg.header.frame_id = self.tf_drone
-        temperature_msg.temperature = data.temperature_height
+        temperature_msg.temperature = float(data.temperature_height)
         self.pub_temperature.publish(temperature_msg)
 
         # Publish flight data
@@ -369,17 +369,17 @@ class TelloNode(tello.Tello):
 
         msg.light_strength = data.light_strength
 
-        msg.fly_speed = data.fly_speed
-        msg.east_speed = data.east_speed
-        msg.north_speed = data.north_speed
-        msg.ground_speed = data.ground_speed
-        msg.fly_time = data.fly_time
-        msg.drone_fly_time_left = data.drone_fly_time_left
+        msg.fly_speed = float(data.fly_speed)
+        msg.east_speed = float(data.east_speed)
+        msg.north_speed = float(data.north_speed)
+        msg.ground_speed = float(data.ground_speed)
+        msg.fly_time = float(data.fly_time)
+        msg.drone_fly_time_left = float(data.drone_fly_time_left)
 
         msg.wifi_strength = data.wifi_strength
         msg.wifi_disturb = data.wifi_disturb
 
-        msg.height = data.height
+        msg.height = float(data.height)
         msg.temperature_height = data.temperature_height
 
         self.pub_status.publish(msg)
