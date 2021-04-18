@@ -21,4 +21,5 @@ rosdep update
 
 echo " - ROS 1 to ROS2 bridge"
 
+apt install -y ros-foxy-ros1-bridge*
 apt install -y ros-foxy-rosbag2-bag-v2-plugins

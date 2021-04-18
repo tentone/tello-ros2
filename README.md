@@ -60,7 +60,7 @@ ros2 bag info <bag_file_name>
 - To play ROS 1 bags in ROS 2 you will need to first install ROS 1, and the ROS bag adapter plugin. The the bags can be run using the command.
 
 ```bash
-ros2 bag info -s rosbag_v2 <path_to_bagfile>
+ros2 bag play -s rosbag_v2 <path_to_bagfile>
 ```
 
 ##### Camera calibration
