@@ -38,13 +38,13 @@ class TelloNode(tello.Tello):
         self.node.declare_parameter('tf_drone_body', 'body')
 
         # Connection parameters
-        self.connect_timeout_sec = float(self.node.get_parameter('connect_timeout_sec', 10.0))
-        self.tello_ip = self.node.get_parameter('tello_ip', '192.168.10.1')
+        self.connect_timeout_sec = float(self.node.get_parameter('connect_timeout_sec').value)
+        self.tello_ip = str(self.node.get_parameter('tello_ip').value)
 
         # TF parameters
-        self.tf_base = self.node.get_parameter('tf_base', 'map')
-        self.tf_drone = self.node.get_parameter('tf_drone', 'drone')
-        self.tf_drone_body = self.node.get_parameter('tf_drone_body', 'body')
+        self.tf_base = str(self.node.get_parameter('tf_base').value)
+        self.tf_drone = str(self.node.get_parameter('tf_drone').value)
+        self.tf_drone_body = str(self.node.get_parameter('tf_drone_body').value)
 
         # OpenCV bridge
         self.bridge = CvBridge()
@@ -53,7 +53,7 @@ class TelloNode(tello.Tello):
         super(TelloNode, self).__init__(self.tello_ip)
 
         # Connect to drone
-        self.node.get_logger().info('Tello: Connecting to drone %s', self.tello_addr)
+        self.node.get_logger().info('Tello: Connecting to drone')
         self.connect()
 
         try:
