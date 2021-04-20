@@ -14,6 +14,7 @@ def generate_launch_description():
             package='tello',
             executable='tello',
             namespace='/',
-            name='tello'
+            name='tello',
+            respawn=True
         )
     ])
