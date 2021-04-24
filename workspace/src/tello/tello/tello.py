@@ -631,10 +631,8 @@ class Tello(object):
                      (uint16(data[5], data[6]), uint16(data[7], data[8]), byte_to_hexstring(data)))
         elif cmd == TELLO_CMD_FILE_SIZE:
             # Drone is about to send us a file. Get ready.
-            # N.b. one of the fields in the packet is a file ID; by demuxing
-            # based on file ID we can receive multiple files at once. This
-            # code doesn't support that yet, though, so don't take one photo
-            # while another is still being received.
+            # N.b. one of the fields in the packet is a file ID; by demuxing based on file ID we can receive multiple files at once.
+            # This code doesn't support that yet, though, so don't take one photo while another is still being received.
             log.info("recv: file size: %s" % byte_to_hexstring(data))
             if len(pkt.get_data()) >= 7:
                 (size, filenum) = struct.unpack('<xLH', pkt.get_data())
@@ -649,8 +647,7 @@ class Tello(object):
             self.send_packet(pkt)
         elif cmd == TELLO_CMD_FILE_DATA:
             # log.info("recv: file data: %s" % byte_to_hexstring(data[9:21]))
-            # Drone is sending us a fragment of a file it told us to prepare
-            # for earlier.
+            # Drone is sending us a fragment of a file it told us to prepare for earlier.
             self.recv_file_data(pkt.get_data())
         else:
             log.info('unknown packet: %04x %s' % (cmd, byte_to_hexstring(data)))
@@ -667,18 +664,15 @@ class Tello(object):
             return
 
         if file.recvFragment(chunk, fragment, size, data[12:12+size]):
-            # Did this complete a chunk? Ack the chunk so the drone won't
-            # re-send it.
+            # Did this complete a chunk? Ack the chunk so the drone won't re-send it.
             self.send_packet_data(TELLO_CMD_FILE_DATA, type=0x50,
                 payload=struct.pack('<BHL', 0, filenum, chunk))
 
         if file.done():
-            # We have the whole file! First, send a normal ack with the first
-            # byte set to 1 to indicate file completion.
+            # We have the whole file! First, send a normal ack with the first byte set to 1 to indicate file completion.
             self.send_packet_data(TELLO_CMD_FILE_DATA, type=0x50,
                 payload=struct.pack('<BHL', 1, filenum, chunk))
-            # Then send the FILE_COMPLETE packed separately telling it how
-            # large we thought the file was.
+            # Then send the FILE_COMPLETE packed separately telling it how  large we thought the file was.
             self.send_packet_data(TELLO_CMD_FILE_COMPLETE, type=0x48,
                 payload=struct.pack('<HL', filenum, file.size))
             # Inform subscribers that we have a file and clean up.
@@ -775,12 +769,12 @@ class Tello(object):
         sock.bind(('', port))
         sock.settimeout(1.0)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 512 * 1024)
-        log.info('video receive buffer size = %d' %
-                 sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF))
+        log.info('video receive buffer size = %d' %sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF))
 
         prev_video_data = None
         prev_ts = None
         history = []
+
         while self.state != self.STATE_QUIT:
             if not self.video_enabled:
                 time.sleep(1.0)

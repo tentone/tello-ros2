@@ -1,3 +1,4 @@
+
 class Event:
     def __init__(self, name='annoymous'):
         self.name = name
@@ -11,9 +12,3 @@ class Event:
     def getname(self):
         return self.name
 
-
-if __name__ == '__main__':
-    ev = Event()
-    print(ev)
-    ev = Event('test event')
-    print(ev)

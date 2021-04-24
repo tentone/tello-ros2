@@ -34,20 +34,18 @@ class TelloNode(tello.Tello):
         self.node = node
 
         # Connection parameters
-        self.node.declare_parameter('connect_timeout_sec', 10.0)
+        self.node.declare_parameter('connect_timeout', 10.0)
         self.node.declare_parameter('tello_ip', '192.168.10.1')
         self.node.declare_parameter('tf_base', 'map')
         self.node.declare_parameter('tf_drone', 'drone')
-        self.node.declare_parameter('tf_drone_body', 'body')
 
         # Connection parameters
-        self.connect_timeout_sec = float(self.node.get_parameter('connect_timeout_sec').value)
+        self.connect_timeout = float(self.node.get_parameter('connect_timeout').value)
         self.tello_ip = str(self.node.get_parameter('tello_ip').value)
 
         # TF parameters
         self.tf_base = str(self.node.get_parameter('tf_base').value)
         self.tf_drone = str(self.node.get_parameter('tf_drone').value)
-        self.tf_drone_body = str(self.node.get_parameter('tf_drone_body').value)
 
         # OpenCV bridge
         self.bridge = CvBridge()
@@ -60,7 +58,7 @@ class TelloNode(tello.Tello):
         self.connect()
 
         try:
-            self.wait_for_connection(timeout=self.connect_timeout_sec)
+            self.wait_for_connection(timeout=self.connect_timeout)
         except Exception as err:
             self.terminate(err)
             return
@@ -416,7 +414,7 @@ def main(args=None):
     drone = TelloNode(node)
 
     while rclpy.ok() and drone.state != drone.STATE_QUIT:
-        print('running')
+        pass
 
     drone.cb_shutdown()
     node.destroy_node()

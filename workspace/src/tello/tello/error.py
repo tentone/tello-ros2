@@ -1,6 +1,5 @@
 """Error types for tellopy"""
 
-
 class TelloError(Exception):
     """Base class for all Tello errors"""
 

@@ -12,6 +12,7 @@ class VideoStream(object):
         self.wait_first_packet_in_frame = True
         self.ignore_packets = 0
         self.name = 'VideoStream'
+
         drone.subscribe(drone.EVENT_CONNECTED, self.__handle_event)
         drone.subscribe(drone.EVENT_DISCONNECTED, self.__handle_event)
         drone.subscribe(drone.EVENT_VIDEO_DATA, self.__handle_event)
@@ -27,6 +28,7 @@ class VideoStream(object):
                 del self.queue[0]
         finally:
             self.cond.release()
+            
         # returning data of zero length indicates end of stream
         self.log.debug('%s.read(size=%d) = %d' % (self.name, size, len(data)))
         return data
