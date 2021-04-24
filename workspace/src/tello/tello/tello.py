@@ -758,6 +758,7 @@ class Tello(object):
 
     def video_thread(self):
         log.info('start video thread')
+        
         # Create a UDP socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         port = 6038

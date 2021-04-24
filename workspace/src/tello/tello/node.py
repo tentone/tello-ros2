@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import pprint
 import math
 import rclpy
 import threading
@@ -63,19 +64,6 @@ class TelloNode(tello.Tello):
 
         self.node.get_logger().info('Tello: Connected to drone')
 
-        # Max position delta without applying correction
-        self.pos_max_delta = 2.0
-
-        # Correction applied to drone positioning
-        self.pos_delta_x = 0.0
-        self.pos_delta_y = 0.0
-        self.pos_delta_z = 0.0
-
-        # Position of the drone
-        self.pos_x = 0.0
-        self.pos_y = 0.0
-        self.pos_z = 0.0
-
         # Setup dynamic reconfigure
         self.cfg = None
 
@@ -89,7 +77,7 @@ class TelloNode(tello.Tello):
         self.pub_odom = self.node.create_publisher(Odometry, 'odom', 10)
 
         # Setup TF broadcaster
-        self.tf_br = tf2_ros.TransformBroadcaster(self.node)
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
 
         # Setup ROS subscribers
         def cb_stop(msg):
@@ -237,71 +225,43 @@ class TelloNode(tello.Tello):
     # Callback method called when the drone sends light data
     def cb_drone_light_data(self, event, sender, data, **args):
         return
-        #print "------------LDATA--------------"
+        #print("------------LDATA--------------"
         #print data.__dict__
-        #print "----------- MVO DATA-----------"
+        #print("----------- MVO DATA-----------"
         #print data.mvo.__dict__
-        #print "----------- IMU DATA-----------"
+        #print("----------- IMU DATA-----------"
         #print data.imu.__dict__
-        #print "-------------------------------"
+        #print("-------------------------------"
 
     # Callback method called when the drone sends odom info
     def cb_drone_odom_log_data(self, event, sender, data, **args):
-        #print "----------- MVO DATA-----------"
-        #print data.mvo.__dict__
-        #print "Pos X" + str(data.mvo.pos_x) + " Y" + str(data.mvo.pos_y) + " Z" + str(data.mvo.pos_z)
-        #print "Vel X" + str(data.mvo.vel_x) + " Y" + str(data.mvo.vel_y) + " Z" + str(data.mvo.vel_z)
-        #print "----------- IMU DATA-----------"
-        #print data.imu.__dict__
-        #print "----------LOG DATA-------------"
-        #print data.imu.log.__dict__
-        #print "-------------------------------"
-
-        # Calculate delta between positions
-        delta = math.sqrt(math.pow(self.pos_x - data.mvo.pos_x, 2) + math.pow(self.pos_y - data.mvo.pos_y, 2) + math.pow(self.pos_z - data.mvo.pos_z, 2))
-
-        # Apply correction to position
-        if delta > self.pos_max_delta:
-            self.pos_delta_x += data.mvo.pos_x - self.pos_x
-            self.pos_delta_y += data.mvo.pos_y - self.pos_y
-            self.pos_delta_z += data.mvo.pos_z - self.pos_z
+        pp = pprint.PrettyPrinter(width=41, compact=True)
+        pp.pprint("----------- MVO DATA-----------")
+        pp.pprint(data.mvo.__dict__)
+        pp.pprint(data.mvo.log.__dict__)
+        pp.pprint("----------- IMU DATA-----------")
+        pp.pprint(data.imu.__dict__)
+        pp.pprint(data.imu.log.__dict__)
+        pp.pprint("----------LOG DATA-------------")
+        pp.pprint(data.log.__dict__)
+        pp.pprint("-------------------------------")
 
 
-        # Position of the drone
-        self.pos_x = data.mvo.pos_x
-        self.pos_y = data.mvo.pos_y
-        self.pos_z = data.mvo.pos_z
-
-        pos_x = self.pos_x - self.pos_delta_x
-        pos_y = self.pos_y - self.pos_delta_y
-        pos_z = self.pos_z - self.pos_delta_z
-
-
+        # Position data
+        position = (data.mvo.pos_x, data.mvo.pos_y, data.mvo.pos_z)
         quaternion = (data.imu.q0, data.imu.q1, data.imu.q2, data.imu.q3)
-        
-        # euler = tf_conversions.transformations.euler_from_quaternion(quaternion)
-        # roll = euler[0]
-
-        # quaternion_roll = tf_conversions.transformations.quaternion_from_euler(0.0, 0.0, -roll)
-
-        #print "----------CALCULATED POSITION-------------"
-        #print "Euler Roll:" + str(euler[0]) + " Pitch: " + str(euler[1]) + "Yaw: " + str(euler[2])
-        #print "Delta X" + str(self.pos_delta_x) + " Y" + str(self.pos_delta_y) + " Z" + str(self.pos_delta_z)
-        #print "MVO Position X" + str(data.mvo.pos_x) + " Y" + str(data.mvo.pos_y) + " Z" + str(data.mvo.pos_z)
-        #print "Calculated Position X" + str(pos_x) + " Y" + str(pos_y) + " Z" + str(pos_z)
-        #print "------------------------------------------"
+        euler = (data.imu.gyro_x, data.imu.gyro_y, data.imu.gyro_z)
 
         # Publish drone transform
-        # self.tf_br.sendTransform((pos_x, pos_y, pos_z), (0.0, 0.0, 0.0, 1.0), self.node.get_clock().now(), self.tf_base, self.tf_drone)
-        # self.tf_br.sendTransform((0.0, 0.0, 0.0), (quaternion_roll[0], quaternion_roll[1], quaternion_roll[2], quaternion_roll[3]), self.node.get_clock().now(), self.tf_drone, self.tf_drone_body)
+        # self.tf_broadcaster.sendTransform((data.mvo.pos_x, data.mvo.pos_y, data.mvo.pos_z), (0.0, 0.0, 0.0, 1.0), self.node.get_clock().now(), self.tf_base, self.tf_drone)
 
         # Publish odom data
         odom_msg = Odometry()
         odom_msg.header.stamp = self.node.get_clock().now().to_msg()
         odom_msg.header.frame_id = self.tf_base
-        odom_msg.pose.pose.position.x = pos_x
-        odom_msg.pose.pose.position.y = pos_y
-        odom_msg.pose.pose.position.z = pos_z
+        odom_msg.pose.pose.position.x = data.mvo.pos_x
+        odom_msg.pose.pose.position.y = data.mvo.pos_y
+        odom_msg.pose.pose.position.z = data.mvo.pos_z
         odom_msg.twist.twist.linear.x = data.mvo.vel_x
         odom_msg.twist.twist.linear.y = data.mvo.vel_y
         odom_msg.twist.twist.linear.z = data.mvo.vel_z
@@ -317,10 +277,10 @@ class TelloNode(tello.Tello):
         imu_msg.angular_velocity.x = data.imu.gyro_x
         imu_msg.angular_velocity.y = data.imu.gyro_y
         imu_msg.angular_velocity.z = data.imu.gyro_z
-        # imu_msg.orientation.x = quaternion_roll[0]
-        # imu_msg.orientation.y = quaternion_roll[1]
-        # imu_msg.orientation.z = quaternion_roll[2]
-        # imu_msg.orientation.w = quaternion_roll[3]
+        imu_msg.orientation.x = data.imu.q0
+        imu_msg.orientation.y = data.imu.q1
+        imu_msg.orientation.z = data.imu.q2
+        imu_msg.orientation.w = data.imu.q3
         self.pub_imu.publish(imu_msg)
 
     # Callback called every time the drone sends information
