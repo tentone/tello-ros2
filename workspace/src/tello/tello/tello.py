@@ -100,14 +100,14 @@ class Tello(object):
         self.sock.bind(('', self.port))
         self.sock.settimeout(2.0)
 
-        dispatcher.connect(self.__state_machine, dispatcher.signal.All)
-        threading.Thread(target=self.__recv_thread).start()
-        threading.Thread(target=self.__video_thread).start()
+        dispatcher.connect(self.state_machine, dispatcher.Signal.All)
+        threading.Thread(target=self.recv_thread).start()
+        threading.Thread(target=self.video_thread).start()
 
     def set_loglevel(self, level):
         """
-        Set_loglevel controls the output messages. Valid levels are
-        LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG and LOG_ALL.
+        Set_loglevel controls the output messages.
+        Valid levels are LOG_ERROR, LOG_WARN, LOG_INFO, LOG_DEBUG and LOG_ALL.
         """
         log.set_level(level)
 
@@ -126,22 +126,22 @@ class Tello(object):
         finally:
             self.lock.release()
         if newly_created:
-            self.__send_exposure()
-            self.__send_video_encoder_rate()
+            self.send_exposure()
+            self.send_video_encoder_rate()
             self.start_video()
 
         return res
 
     def connect(self):
         """Connect is used to send the initial connection request to the drone."""
-        self.__publish(event=self.__EVENT_CONN_REQ)
+        self.publish(event=self.__EVENT_CONN_REQ)
 
     def wait_for_connection(self, timeout=None):
         """Wait_for_connection will block until the connection is established."""
         if not self.connected.wait(timeout):
             raise error.TelloError('timeout')
 
-    def __send_conn_req(self):
+    def send_conn_req(self):
         port = 9617
         port0 = (int(port/1000) % 10) << 4 | (int(port/100) % 10)
         port1 = (int(port/10) % 10) << 4 | (int(port/1) % 10)
@@ -153,7 +153,7 @@ class Tello(object):
         """Subscribe a event such as EVENT_CONNECTED, EVENT_FLIGHT_DATA, EVENT_VIDEO_FRAME and so on."""
         dispatcher.connect(handler, signal)
 
-    def __publish(self, event, data=None, **args):
+    def publish(self, event, data=None, **args):
         args.update({'data': data})
         if 'signal' in args:
             del args['signal']
@@ -201,10 +201,9 @@ class Tello(object):
     def quit(self):
         """Quit stops the internal threads."""
         log.info('quit')
-        self.__publish(event=self.__EVENT_QUIT_REQ)
+        self.publish(event=self.__EVENT_QUIT_REQ)
 
     def get_alt_limit(self):
-        ''' ... '''
         self.log.debug('get altitude limit (cmd=0x%02x seq=0x%04x)' % (
             ALT_LIMIT_MSG, self.pkt_seq_num))
         pkt = Packet(ALT_LIMIT_MSG)
@@ -222,7 +221,6 @@ class Tello(object):
         self.get_alt_limit()
 
     def get_att_limit(self):
-        ''' ... '''
         self.log.debug('get attitude limit (cmd=0x%02x seq=0x%04x)' % (
             ATT_LIMIT_MSG, self.pkt_seq_num))
         pkt = Packet(ATT_LIMIT_MSG)
@@ -242,16 +240,13 @@ class Tello(object):
         self.get_att_limit()
 
     def get_low_bat_threshold(self):
-        ''' ... '''
-        self.log.debug('get low battery threshold (cmd=0x%02x seq=0x%04x)' % (
-            LOW_BAT_THRESHOLD_MSG, self.pkt_seq_num))
+        self.log.debug('get low battery threshold (cmd=0x%02x seq=0x%04x)' % (LOW_BAT_THRESHOLD_MSG, self.pkt_seq_num))
         pkt = Packet(LOW_BAT_THRESHOLD_MSG)
         pkt.fixup()
         return self.send_packet(pkt)
         
     def set_low_bat_threshold(self, threshold):
-        self.log.info('set low battery threshold=%s (cmd=0x%02x seq=0x%04x)' % (
-            int(threshold), LOW_BAT_THRESHOLD_CMD, self.pkt_seq_num))
+        self.log.info('set low battery threshold=%s (cmd=0x%02x seq=0x%04x)' % (int(threshold), LOW_BAT_THRESHOLD_CMD, self.pkt_seq_num))
         pkt = Packet(LOW_BAT_THRESHOLD_CMD)
         pkt.add_byte(int(threshold))
         pkt.fixup()        
@@ -266,12 +261,12 @@ class Tello(object):
         pkt.fixup()
         return self.send_packet(pkt)
 
-    def __send_start_video(self):
+    def send_start_video(self):
         pkt = Packet(VIDEO_START_CMD, 0x60)
         pkt.fixup()
         return self.send_packet(pkt)
 
-    def __send_video_mode(self, mode):
+    def send_video_mode(self, mode):
         pkt = Packet(VIDEO_MODE_CMD)
         pkt.add_byte(mode)
         pkt.fixup()
@@ -283,15 +278,15 @@ class Tello(object):
         log.info('set video mode zoom=%s (cmd=0x%02x seq=0x%04x)' % (
             zoom, VIDEO_START_CMD, self.pkt_seq_num))
         self.zoom = zoom
-        return self.__send_video_mode(int(zoom))
+        return self.send_video_mode(int(zoom))
 
     def start_video(self):
         """Start_video tells the drone to send start info (SPS/PPS) for video stream."""
         log.info('start video (cmd=0x%02x seq=0x%04x)' % (VIDEO_START_CMD, self.pkt_seq_num))
         self.video_enabled = True
-        self.__send_exposure()
-        self.__send_video_encoder_rate()
-        return self.__send_start_video()
+        self.send_exposure()
+        self.send_video_encoder_rate()
+        return self.send_start_video()
 
     def set_exposure(self, level):
         """Set_exposure sets the drone camera exposure level. Valid levels are 0, 1, and 2."""
@@ -299,9 +294,9 @@ class Tello(object):
             raise error.TelloError('Invalid exposure level')
         log.info('set exposure (cmd=0x%02x seq=0x%04x)' % (EXPOSURE_CMD, self.pkt_seq_num))
         self.exposure = level
-        return self.__send_exposure()
+        return self.send_exposure()
 
-    def __send_exposure(self):
+    def send_exposure(self):
         pkt = Packet(EXPOSURE_CMD, 0x48)
         pkt.add_byte(self.exposure)
         pkt.fixup()
@@ -312,9 +307,9 @@ class Tello(object):
         log.info('set video encoder rate (cmd=0x%02x seq=%04x)' %
                  (VIDEO_ENCODER_RATE_CMD, self.pkt_seq_num))
         self.video_encoder_rate = rate
-        return self.__send_video_encoder_rate()
+        return self.send_video_encoder_rate()
 
-    def __send_video_encoder_rate(self):
+    def send_video_encoder_rate(self):
         pkt = Packet(VIDEO_ENCODER_RATE_CMD, 0x68)
         pkt.add_byte(self.video_encoder_rate)
         pkt.fixup()
@@ -491,7 +486,7 @@ class Tello(object):
         self.set_throttle(-1)
         self.fast_mode = False            
 
-    def __send_stick_command(self):
+    def send_stick_command(self):
         pkt = Packet(STICK_CMD, 0x60)
 
         axis1 = int(1024 + 660.0 * self.right_x) & 0x7ff
@@ -529,7 +524,7 @@ class Tello(object):
         log.debug("stick command: %s" % byte_to_hexstring(pkt.get_buffer()))
         return self.send_packet(pkt)
 
-    def __send_ack_log(self, id):
+    def send_ack_log(self, id):
         pkt = Packet(LOG_HEADER_MSG, 0x50)
         pkt.add_byte(0x00)
         b0, b1 = le16(id)
@@ -558,7 +553,7 @@ class Tello(object):
         pkt.fixup()
         return self.send_packet(pkt)
 
-    def __process_packet(self, data):
+    def process_packet(self, data):
         if isinstance(data, str):
             data = bytearray([x for x in data])
 
@@ -566,10 +561,10 @@ class Tello(object):
             log.info('connected. (port=%2x%2x)' % (data[9], data[10]))
             log.debug('    %s' % byte_to_hexstring(data))
             if self.video_enabled:
-                self.__send_exposure()
-                self.__send_video_encoder_rate()
-                self.__send_start_video()
-            self.__publish(self.__EVENT_CONN_ACK, data)
+                self.send_exposure()
+                self.send_video_encoder_rate()
+                self.send_start_video()
+            self.publish(self.__EVENT_CONN_ACK, data)
 
             return True
 
@@ -585,29 +580,29 @@ class Tello(object):
             id = uint16(data[9], data[10])
             log.info("recv: log_header: id=%04x, '%s'" % (id, str(data[28:54])))
             log.debug("recv: log_header: %s" % byte_to_hexstring(data[9:]))
-            self.__send_ack_log(id)
-            self.__publish(event=self.EVENT_LOG_HEADER, data=data[9:])
+            self.send_ack_log(id)
+            self.publish(event=self.EVENT_LOG_HEADER, data=data[9:])
             if self.log_data_file and not self.log_data_header_recorded:
                 self.log_data_file.write(data[12:-2])
                 self.log_data_header_recorded = True
         elif cmd == LOG_DATA_MSG:
             log.debug("recv: log_data: length=%d, %s" % (len(data[9:]), byte_to_hexstring(data[9:])))
-            self.__publish(event=self.EVENT_LOG_RAWDATA, data=data[9:])
+            self.publish(event=self.EVENT_LOG_RAWDATA, data=data[9:])
             try:
                 self.log_data.update(data[10:])
                 if self.log_data_file:
                     self.log_data_file.write(data[10:-2])
             except Exception as ex:
                 log.error('%s' % str(ex))
-            self.__publish(event=self.EVENT_LOG_DATA, data=self.log_data)
+            self.publish(event=self.EVENT_LOG_DATA, data=self.log_data)
 
         elif cmd == LOG_CONFIG_MSG:
             log.debug("recv: log_config: length=%d, %s" % (len(data[9:]), byte_to_hexstring(data[9:])))
-            self.__publish(event=self.EVENT_LOG_CONFIG, data=data[9:])
+            self.publish(event=self.EVENT_LOG_CONFIG, data=data[9:])
         elif cmd == WIFI_MSG:
             log.debug("recv: wifi: %s" % byte_to_hexstring(data[9:]))
             self.wifi_strength = data[9]
-            self.__publish(event=self.EVENT_WIFI, data=data[9:])
+            self.publish(event=self.EVENT_WIFI, data=data[9:])
         elif cmd == ALT_LIMIT_MSG:
             log.info("recv: altitude limit: %s" % byte_to_hexstring(data[9:-2]))
         elif cmd == ATT_LIMIT_MSG:
@@ -616,15 +611,15 @@ class Tello(object):
             log.info("recv: low battery threshold: %s" % byte_to_hexstring(data[9:-2]))
         elif cmd == LIGHT_MSG:
             log.debug("recv: light: %s" % byte_to_hexstring(data[9:-2]))
-            self.__publish(event=self.EVENT_LIGHT, data=data[9:])
+            self.publish(event=self.EVENT_LIGHT, data=data[9:])
         elif cmd == FLIGHT_MSG:
             flight_data = FlightData(data[9:])
             flight_data.wifi_strength = self.wifi_strength
             log.debug("recv: flight data: %s" % str(flight_data))
-            self.__publish(event=self.EVENT_FLIGHT_DATA, data=flight_data)
+            self.publish(event=self.EVENT_FLIGHT_DATA, data=flight_data)
         elif cmd == TIME_CMD:
             log.debug("recv: time data: %s" % byte_to_hexstring(data))
-            self.__publish(event=self.EVENT_TIME, data=data[7:9])
+            self.publish(event=self.EVENT_TIME, data=data[7:9])
         elif cmd in (SET_ALT_LIMIT_CMD, ATT_LIMIT_CMD, LOW_BAT_THRESHOLD_CMD, TAKEOFF_CMD, LAND_CMD, VIDEO_START_CMD, VIDEO_ENCODER_RATE_CMD, PALM_LAND_CMD,
                      EXPOSURE_CMD, THROW_AND_GO_CMD, EMERGENCY_CMD):
             log.debug("recv: ack: cmd=0x%02x seq=0x%04x %s" %
@@ -676,7 +671,7 @@ class Tello(object):
             self.send_packet_data(TELLO_CMD_FILE_COMPLETE, type=0x48,
                 payload=struct.pack('<HL', filenum, file.size))
             # Inform subscribers that we have a file and clean up.
-            self.__publish(event=self.EVENT_FILE_RECEIVED, data=file.data())
+            self.publish(event=self.EVENT_FILE_RECEIVED, data=file.data())
             del self.file_recv[filenum]
 
     def record_log_data(self, path = None):
@@ -687,7 +682,7 @@ class Tello(object):
         log.info('record log data in %s' % path)
         self.log_data_file = open(path, 'wb')
 
-    def __state_machine(self, event, sender, data, **args):
+    def state_machine(self, event, sender, data, **args):
         self.lock.acquire()
         cur_state = self.state
         event_connected = False
@@ -696,7 +691,7 @@ class Tello(object):
 
         if self.state == self.STATE_DISCONNECTED:
             if event == self.__EVENT_CONN_REQ:
-                self.__send_conn_req()
+                self.send_conn_req()
                 self.state = self.STATE_CONNECTING
             elif event == self.__EVENT_QUIT_REQ:
                 self.state = self.STATE_QUIT
@@ -710,13 +705,13 @@ class Tello(object):
                 # send time
                 self.__send_time_command()
             elif event == self.__EVENT_TIMEOUT:
-                self.__send_conn_req()
+                self.send_conn_req()
             elif event == self.__EVENT_QUIT_REQ:
                 self.state = self.STATE_QUIT
 
         elif self.state == self.STATE_CONNECTED:
             if event == self.__EVENT_TIMEOUT:
-                self.__send_conn_req()
+                self.send_conn_req()
                 self.state = self.STATE_CONNECTING
                 event_disconnected = True
                 self.video_enabled = False
@@ -733,35 +728,35 @@ class Tello(object):
         self.lock.release()
 
         if event_connected:
-            self.__publish(event=self.EVENT_CONNECTED, **args)
+            self.publish(event=self.EVENT_CONNECTED, **args)
             self.connected.set()
         if event_disconnected:
-            self.__publish(event=self.EVENT_DISCONNECTED, **args)
+            self.publish(event=self.EVENT_DISCONNECTED, **args)
             self.connected.clear()
 
-    def __recv_thread(self):
+    def recv_thread(self):
         sock = self.sock
 
         while self.state != self.STATE_QUIT:
 
             if self.state == self.STATE_CONNECTED:
-                self.__send_stick_command()  # ignore errors
+                self.send_stick_command()  # ignore errors
 
             try:
                 data, server = sock.recvfrom(self.udpsize)
                 log.debug("recv: %s" % byte_to_hexstring(data))
-                self.__process_packet(data)
+                self.process_packet(data)
             except socket.timeout as ex:
                 if self.state == self.STATE_CONNECTED:
                     log.error('recv: timeout')
-                self.__publish(event=self.__EVENT_TIMEOUT)
+                self.publish(event=self.__EVENT_TIMEOUT)
             except Exception as ex:
                 log.error('recv: %s' % str(ex))
                 show_exception(ex)
 
         log.info('exit from the recv thread.')
 
-    def __video_thread(self):
+    def video_thread(self):
         log.info('start video thread')
         # Create a UDP socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -819,8 +814,8 @@ class Tello(object):
                     history = history[-1:]
 
                 # deliver video frame to subscribers
-                self.__publish(event=self.EVENT_VIDEO_FRAME, data=data[2:])
-                self.__publish(event=self.EVENT_VIDEO_DATA, data=data)
+                self.publish(event=self.EVENT_VIDEO_FRAME, data=data[2:])
+                self.publish(event=self.EVENT_VIDEO_DATA, data=data)
 
                 # show video frame statistics
                 if self.prev_video_data_time is None:
@@ -836,7 +831,7 @@ class Tello(object):
                     self.video_data_loss = 0
 
                     # keep sending start video command
-                    self.__send_start_video()
+                    self.send_start_video()
 
             except socket.timeout as ex:
                 log.error('video recv: timeout')
@@ -847,6 +842,3 @@ class Tello(object):
                 show_exception(ex)
 
         log.info('exit from the video thread.')
-
-if __name__ == '__main__':
-    print('You can use test.py for testing.')

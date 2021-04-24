@@ -4,20 +4,18 @@ import math
 import rclpy
 import threading
 import numpy
+import time
+import av
+import tf2_ros
 
 from . import tello
 from tellopy_msg.msg import FlightStatus
-import av
-
-import tf2_ros
-
 from std_msgs.msg import Empty, UInt8, UInt8, Bool
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
 
-import cv2
 
 # Video rates possible for the tello drone
 VIDEO_AUTO = 0
@@ -414,7 +412,7 @@ def main(args=None):
     drone = TelloNode(node)
 
     while rclpy.ok() and drone.state != drone.STATE_QUIT:
-        pass
+        time.sleep(1)
 
     drone.cb_shutdown()
     node.destroy_node()

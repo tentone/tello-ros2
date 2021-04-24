@@ -5,6 +5,7 @@ class VideoStream(object):
     def __init__(self, drone):
         self.drone = drone
         self.log = drone.log
+
         self.cond = threading.Condition()
         self.queue = []
         self.closed = False
@@ -13,9 +14,9 @@ class VideoStream(object):
         self.ignore_packets = 0
         self.name = 'VideoStream'
 
-        drone.subscribe(drone.EVENT_CONNECTED, self.__handle_event)
-        drone.subscribe(drone.EVENT_DISCONNECTED, self.__handle_event)
-        drone.subscribe(drone.EVENT_VIDEO_DATA, self.__handle_event)
+        drone.subscribe(drone.EVENT_CONNECTED, self.handle_event)
+        drone.subscribe(drone.EVENT_DISCONNECTED, self.handle_event)
+        drone.subscribe(drone.EVENT_VIDEO_DATA, self.handle_event)
 
     def read(self, size):
         self.cond.acquire()
@@ -28,7 +29,7 @@ class VideoStream(object):
                 del self.queue[0]
         finally:
             self.cond.release()
-            
+
         # returning data of zero length indicates end of stream
         self.log.debug('%s.read(size=%d) = %d' % (self.name, size, len(data)))
         return data
@@ -37,7 +38,7 @@ class VideoStream(object):
         self.log.info('%s.seek(%d, %d)' % (str(self.name), offset, whence))
         return -1
 
-    def __handle_event(self, event, sender, data):
+    def handle_event(self, event, sender, data):
         if event is self.drone.EVENT_CONNECTED:
             self.log.info('%s.handle_event(CONNECTED)' % (self.name))
         elif event is self.drone.EVENT_DISCONNECTED:

@@ -13,3 +13,5 @@ workspace/src/lib/
 workspace/src/install/
 
 opencv/
+
+.vscode/.ropeproject/

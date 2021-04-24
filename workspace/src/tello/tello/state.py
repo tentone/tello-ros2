@@ -10,10 +10,3 @@ class State(object):
 
     def getname(self):
         return self.name
-
-
-if __name__ == '__main__':
-    st = State()
-    print(st)
-    st = State('test state')
-    print(st)
