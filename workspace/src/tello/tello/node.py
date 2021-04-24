@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import math
 import rclpy
 import threading
@@ -14,6 +16,8 @@ from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
+
+import cv2
 
 # Video rates possible for the tello drone
 VIDEO_AUTO = 0

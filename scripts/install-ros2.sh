@@ -45,7 +45,6 @@ apt install -y python3-colcon-common-extensions python3-rosdep2
 rosdep update
 rosdep fix-permissions
 
-
 # Add to bashrc
 echo " - Register ROS 2 in .bashrc"
 echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
@@ -55,7 +54,7 @@ source ~/.bashrc
 
 # Install project dependencies
 echo " - Python dependencies"
-pip3 install catkin_pkg rospkg av
+pip3 install catkin_pkg rospkg av image opencv-python
 apt install python3-tf*
 
 echo " - CPP dependencies"
