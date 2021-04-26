@@ -13,7 +13,7 @@ from . import tello
 from tellopy_msg.msg import FlightStatus
 from std_msgs.msg import Empty, UInt8, UInt8, Bool
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, TransformStamped
 from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
 
@@ -253,7 +253,14 @@ class TelloNode(tello.Tello):
         euler = (data.imu.gyro_x, data.imu.gyro_y, data.imu.gyro_z)
 
         # Publish drone transform
-        # self.tf_broadcaster.sendTransform((data.mvo.pos_x, data.mvo.pos_y, data.mvo.pos_z), (0.0, 0.0, 0.0, 1.0), self.node.get_clock().now(), self.tf_base, self.tf_drone)
+        t = TransformStamped()
+        t.header.stamp = self.node.get_clock().now().to_msg()
+        t.header.frame_id = self.tf_base
+        t.child_frame_id = self.tf_drone
+        t.transform.translation.x = data.mvo.pos_x
+        t.transform.translation.y = data.mvo.pos_y
+        t.transform.translation.z = data.mvo.pos_z
+        self.tf_broadcaster.sendTransform(t)
 
         # Publish odom data
         odom_msg = Odometry()
