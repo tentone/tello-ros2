@@ -17,7 +17,6 @@ from geometry_msgs.msg import Twist, TransformStamped
 from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
 
-
 # Video rates possible for the tello drone
 VIDEO_AUTO = 0
 VIDEO_1MBS = 1
@@ -245,7 +244,6 @@ class TelloNode(tello.Tello):
         pp.pprint("----------LOG DATA-------------")
         pp.pprint(data.log.__dict__)
         pp.pprint("-------------------------------")
-
 
         # Position data
         position = (data.mvo.pos_x, data.mvo.pos_y, data.mvo.pos_z)

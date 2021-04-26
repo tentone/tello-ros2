@@ -33,13 +33,13 @@ def generate_launch_description():
             ],
             remappings=[],
             respawn=True
-        ),
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            namespace='/',
-            name='tf',
-            arguments=['1', '0', '0', '0', '0', '0', '1', 'map', 'drone'],
-            respawn=True
         )
+        # Node(
+        #     package='tf2_ros',
+        #     executable='static_transform_publisher',
+        #     namespace='/',
+        #     name='tf',
+        #     arguments=['1', '0', '0', '0', '0', '0', '1', 'map', 'drone'],
+        #     respawn=True
+        # )
     ])
