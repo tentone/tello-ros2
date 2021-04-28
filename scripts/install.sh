@@ -52,6 +52,22 @@ echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
 echo "export _colcon_cd_root=~/ros2_install" >> ~/.bashrc
 source ~/.bashrc
 
+# Install OpenCV from source
+echo " - Installing OpenCV"
+apt install -y cmake gcc g++ python3-dev python3-numpy libavcodec-dev libavformat-dev libswscale-dev libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev libgtk-3-dev libpng-dev libjpeg-dev libopenexr-dev libtiff-dev libwebp-dev
+
+# Clone the repository
+cd ~
+apt install -y git
+git clone https://github.com/opencv/opencv.git
+
+# Building files
+cd opencv
+mkdir build
+cd build
+cmake ..
+make install -j4
+
 # Install project dependencies
 echo " - Python dependencies"
 pip3 install catkin_pkg rospkg av image opencv-python
@@ -68,3 +84,4 @@ sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_rel
 wget https://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
 apt update
 apt install gazebo11 libgazebo11-dev
+
