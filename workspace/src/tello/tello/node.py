@@ -8,7 +8,7 @@ import numpy
 import time
 import av
 import tf2_ros
-
+from rclpy.node import Node
 from . import tello
 from tello_msg.msg import FlightStatus
 from std_msgs.msg import Empty, UInt8, UInt8, Bool
@@ -49,7 +49,7 @@ class TelloNode(tello.Tello):
         self.bridge = CvBridge()
         self.frame_thread = None
 
-        super(TelloNode, self).__init__(self.tello_ip)
+        super().__init__(self.tello_ip)
 
         # Connect to drone
         self.node.get_logger().info('Tello: Connecting to drone')
@@ -62,9 +62,6 @@ class TelloNode(tello.Tello):
             return
 
         self.node.get_logger().info('Tello: Connected to drone')
-
-        # Setup dynamic reconfigure
-        self.cfg = None
 
         # Setup ROS publishers
         self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', 10)
@@ -101,7 +98,7 @@ class TelloNode(tello.Tello):
         self.subscribe(self.EVENT_LIGHT, self.cb_drone_light_data)
 
         # Frame grabber thread
-        # self.frame_thread = threading.Thread(target=self.camera_loop)
+        # self.frame_thread = threading.Thread(target=self.camera_thread)
         # self.frame_thread.start()
 
         # Configure video encoder rate
@@ -110,8 +107,8 @@ class TelloNode(tello.Tello):
 
         self.node.get_logger().info('Tello: Driver node ready')
 
-    # Camera processing thread method should be called passed to a Thread object
-    def camera_loop(self):
+    # Camera processing thread method should be called passed to a thread object
+    def camera_thread(self):
         # Configure node loop rate
         rate = self.node.create_rate(30)
         frame_id = self.tf_drone
@@ -123,7 +120,7 @@ class TelloNode(tello.Tello):
         video_stream = None
         frame_dropped = 0
 
-        # Drone processing cycle
+        # Drone processing cycle only stop when state is QUIT
         while self.state != self.STATE_QUIT:
             # Try to connect video
             if container is None:
@@ -134,7 +131,6 @@ class TelloNode(tello.Tello):
                     container = None
                     self.node.get_logger().error('Tello: Failed to connect video stream (pyav) - %s' % str(err))
                     self.terminate(err)
-
             # Process frames from drone camera
             else:
                 try:
@@ -169,11 +165,14 @@ class TelloNode(tello.Tello):
 
             rate.sleep()
 
+    # Terminate the code and shutdown node.
     def terminate(self, err):
+        self.state = self.STATE_QUIT
         self.node.get_logger().error(str(err))
         rclpy.shutdown()
         self.quit()
 
+    # Stop all movement in the drone
     def cb_stop(self, msg):
         self.right(0)
         self.left(0)
@@ -184,16 +183,20 @@ class TelloNode(tello.Tello):
         self.clockwise(0)
         self.counter_clockwise(0)
 
+    # Drone takeoff message control
     def cb_takeoff(self, msg):
-        print('takeoff message received')
+        # self.node.get_logger().info('Tello: Takeoff message received')
         self.takeoff()
 
-    def cb_land(msg):
+    # Land the drone message callback
+    def cb_land(self, msg):
         self.land()
 
+    # Move the drone left callback
     def cb_left(self, msg):
         self.left(msg.data)
 
+    # Move the drone right callback
     def cb_right(self, msg):
         self.right(msg.data)
 
@@ -378,8 +381,7 @@ def main(args=None):
     node = rclpy.create_node('tello')
     drone = TelloNode(node)
 
-    while rclpy.ok() and drone.state != drone.STATE_QUIT:
-        continue
+    rclpy.spin(node)
 
     drone.cb_shutdown()
     node.destroy_node()

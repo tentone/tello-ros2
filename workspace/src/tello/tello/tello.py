@@ -31,13 +31,13 @@ class Tello(object):
     EVENT_DISCONNECTED = event.Event('disconnected')
     EVENT_FILE_RECEIVED = event.Event('file received')
 
-    # internal events
-    __EVENT_CONN_REQ = event.Event('conn_req')
-    __EVENT_CONN_ACK = event.Event('conn_ack')
-    __EVENT_TIMEOUT = event.Event('timeout')
-    __EVENT_QUIT_REQ = event.Event('quit_req')
+    # Internal events
+    EVENT_CONN_REQ = event.Event('conn_req')
+    EVENT_CONN_ACK = event.Event('conn_ack')
+    EVENT_TIMEOUT = event.Event('timeout')
+    EVENT_QUIT_REQ = event.Event('quit_req')
 
-    # for backward comaptibility
+    # For backward comaptibility
     CONNECTED_EVENT = EVENT_CONNECTED
     WIFI_EVENT = EVENT_WIFI
     LIGHT_EVENT = EVENT_LIGHT
@@ -134,7 +134,7 @@ class Tello(object):
 
     def connect(self):
         """Connect is used to send the initial connection request to the drone."""
-        self.publish(event=self.__EVENT_CONN_REQ)
+        self.publish(event=self.EVENT_CONN_REQ)
 
     def wait_for_connection(self, timeout=None):
         """Wait_for_connection will block until the connection is established."""
@@ -201,7 +201,7 @@ class Tello(object):
     def quit(self):
         """Quit stops the internal threads."""
         log.info('quit')
-        self.publish(event=self.__EVENT_QUIT_REQ)
+        self.publish(event=self.EVENT_QUIT_REQ)
 
     def get_alt_limit(self):
         self.log.debug('get altitude limit (cmd=0x%02x seq=0x%04x)' % (
@@ -564,7 +564,7 @@ class Tello(object):
                 self.send_exposure()
                 self.send_video_encoder_rate()
                 self.send_start_video()
-            self.publish(self.__EVENT_CONN_ACK, data)
+            self.publish(self.EVENT_CONN_ACK, data)
 
             return True
 
@@ -665,13 +665,14 @@ class Tello(object):
 
         if file.done():
             # We have the whole file! First, send a normal ack with the first byte set to 1 to indicate file completion.
-            self.send_packet_data(TELLO_CMD_FILE_DATA, type=0x50,
-                payload=struct.pack('<BHL', 1, filenum, chunk))
+            self.send_packet_data(TELLO_CMD_FILE_DATA, type=0x50, payload=struct.pack('<BHL', 1, filenum, chunk))
+            
             # Then send the FILE_COMPLETE packed separately telling it how  large we thought the file was.
-            self.send_packet_data(TELLO_CMD_FILE_COMPLETE, type=0x48,
-                payload=struct.pack('<HL', filenum, file.size))
+            self.send_packet_data(TELLO_CMD_FILE_COMPLETE, type=0x48, payload=struct.pack('<HL', filenum, file.size))
+            
             # Inform subscribers that we have a file and clean up.
             self.publish(event=self.EVENT_FILE_RECEIVED, data=file.data())
+
             del self.file_recv[filenum]
 
     def record_log_data(self, path = None):
@@ -690,32 +691,31 @@ class Tello(object):
         log.debug('event %s in state %s' % (str(event), str(self.state)))
 
         if self.state == self.STATE_DISCONNECTED:
-            if event == self.__EVENT_CONN_REQ:
+            if event == self.EVENT_CONN_REQ:
                 self.send_conn_req()
                 self.state = self.STATE_CONNECTING
-            elif event == self.__EVENT_QUIT_REQ:
+            elif event == self.EVENT_QUIT_REQ:
                 self.state = self.STATE_QUIT
                 event_disconnected = True
                 self.video_enabled = False
 
         elif self.state == self.STATE_CONNECTING:
-            if event == self.__EVENT_CONN_ACK:
+            if event == self.EVENT_CONN_ACK:
                 self.state = self.STATE_CONNECTED
                 event_connected = True
-                # send time
                 self.__send_time_command()
-            elif event == self.__EVENT_TIMEOUT:
+            elif event == self.EVENT_TIMEOUT:
                 self.send_conn_req()
-            elif event == self.__EVENT_QUIT_REQ:
+            elif event == self.EVENT_QUIT_REQ:
                 self.state = self.STATE_QUIT
 
         elif self.state == self.STATE_CONNECTED:
-            if event == self.__EVENT_TIMEOUT:
+            if event == self.EVENT_TIMEOUT:
                 self.send_conn_req()
                 self.state = self.STATE_CONNECTING
                 event_disconnected = True
                 self.video_enabled = False
-            elif event == self.__EVENT_QUIT_REQ:
+            elif event == self.EVENT_QUIT_REQ:
                 self.state = self.STATE_QUIT
                 event_disconnected = True
                 self.video_enabled = False
@@ -740,7 +740,7 @@ class Tello(object):
         while self.state != self.STATE_QUIT:
 
             if self.state == self.STATE_CONNECTED:
-                self.send_stick_command()  # ignore errors
+                self.send_stick_command()
 
             try:
                 data, server = sock.recvfrom(self.udpsize)
@@ -749,7 +749,7 @@ class Tello(object):
             except socket.timeout as ex:
                 if self.state == self.STATE_CONNECTED:
                     log.error('recv: timeout')
-                self.publish(event=self.__EVENT_TIMEOUT)
+                self.publish(event=self.EVENT_TIMEOUT)
             except Exception as ex:
                 log.error('recv: %s' % str(ex))
                 show_exception(ex)
@@ -786,15 +786,15 @@ class Tello(object):
                 loss = video_data.gap(prev_video_data)
                 if loss != 0:
                     self.video_data_loss += loss
-                    # enable this line to see packet history
+
+                    # Enable this line to see packet history
                     # show_history = True
+
                 prev_video_data = video_data
 
                 # check video data interval
                 if prev_ts is not None and 0.1 < (now - prev_ts).total_seconds():
-                    log.info('video recv: %d bytes %02x%02x +%03d' %
-                             (len(data), byte(data[0]), byte(data[1]),
-                              (now - prev_ts).total_seconds() * 1000))
+                    log.info('video recv: %d bytes %02x%02x +%03d' % (len(data), byte(data[0]), byte(data[1]), (now - prev_ts).total_seconds() * 1000))
                 prev_ts = now
 
                 # save video data history
@@ -824,9 +824,7 @@ class Tello(object):
                 self.video_data_size += len(data)
                 dur = (now - self.prev_video_data_time).total_seconds()
                 if 2.0 < dur:
-                    log.info(('video data %d bytes %5.1fKB/sec' %
-                              (self.video_data_size, self.video_data_size / dur / 1024)) +
-                             ((' loss=%d' % self.video_data_loss) if self.video_data_loss != 0 else ''))
+                    log.info(('video data %d bytes %5.1fKB/sec' % (self.video_data_size, self.video_data_size / dur / 1024)) + ((' loss=%d' % self.video_data_loss) if self.video_data_loss != 0 else ''))
                     self.video_data_size = 0
                     self.prev_video_data_time = now
                     self.video_data_loss = 0

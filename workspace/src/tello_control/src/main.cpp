@@ -93,11 +93,6 @@ class TelloControl : public rclcpp::Node
 		 */
 		void manualControl(int key)
 		{
-			if(key == NO_KEY)
-			{
-					return;
-			}
-
 			// Only send data on changes
 			if(key != last_key)
 			{
@@ -127,17 +122,17 @@ class TelloControl : public rclcpp::Node
 			cv::imshow("Tello", image);	
 
 			int key = cv::waitKey(1);
-			
-			// std::cout << key << std::endl;
 
 			// Takeoff
-			if(key == KEY_T)
+			if(key == (int)('t'))
 			{
 				std_msgs::msg::Empty empty = std_msgs::msg::Empty();
 				publisher_takeoff->publish(empty);
+
+				std::cout << "Takeoff Message" << std::endl;
 			}
 			// Land
-			else if(key == KEY_L)
+			else if(key == (int)('l'))
 			{
 				std_msgs::msg::Empty empty = std_msgs::msg::Empty();
 				publisher_land->publish(empty);
