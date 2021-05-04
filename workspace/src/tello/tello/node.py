@@ -14,7 +14,6 @@ import time
 from djitellopy import Tello
 
 from rclpy.node import Node
-from . import tello
 from tello_msg.msg import FlightStatus
 from std_msgs.msg import Empty, UInt8, UInt8, Bool
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
@@ -25,40 +24,35 @@ from cv_bridge import CvBridge
 # Tello ROS node class, inherits from the Tello controller object.
 #
 # Can be configured to be used by multiple drones, publishes, all data collected from the drone and provides control using ROS messages.
-class TelloNode(tello.Tello):
+class TelloNode():
     def __init__(self, node):
+        # ROS node
         self.node = node
 
-        self.tello = Tello()
-
-        # Connection parameters
+        # Declare parameters
         self.node.declare_parameter('connect_timeout', 10.0)
         self.node.declare_parameter('tello_ip', '192.168.10.1')
         self.node.declare_parameter('tf_base', 'map')
         self.node.declare_parameter('tf_drone', 'drone')
 
-        # Connection parameters
+        # Get parameters
         self.connect_timeout = float(self.node.get_parameter('connect_timeout').value)
         self.tello_ip = str(self.node.get_parameter('tello_ip').value)
-
-        # TF parameters
         self.tf_base = str(self.node.get_parameter('tf_base').value)
         self.tf_drone = str(self.node.get_parameter('tf_drone').value)
 
         # OpenCV bridge
         self.bridge = CvBridge()
 
-        super().__init__(self.tello_ip)
+        # Configure drone connection
+        Tello.TELLO_IP = self.tello_ip
+        Tello.RESPONSE_TIMEOUT = int(self.connect_timeout)
 
         # Connect to drone
         self.node.get_logger().info('Tello: Connecting to drone')
-        self.connect()
 
-        try:
-            self.wait_for_connection(timeout=self.connect_timeout)
-        except Exception as err:
-            self.terminate(err)
-            return
+        self.tello = Tello()
+        self.tello.connect()
 
         self.node.get_logger().info('Tello: Connected to drone')
 
@@ -80,13 +74,8 @@ class TelloNode(tello.Tello):
         self.sub_land = self.node.create_subscription(Empty, 'land', self.cb_land, 10)
         self.sub_cmd_vel = self.node.create_subscription(Twist, 'cmd_vel', self.cb_cmd_vel, 10)
 
-        # Subscribe data from drone
-        # self.subscribe(self.EVENT_FLIGHT_DATA, self.cb_drone_flight_data)
-        # self.subscribe(self.EVENT_LOG_DATA, self.cb_drone_odom_log_data)
-        # self.subscribe(self.EVENT_LIGHT, self.cb_drone_light_data)
-
+        self.start_video_capture()
         self.node.get_logger().info('Tello: Driver node ready')
-    
 
     """
     Start video capture thread.
@@ -100,7 +89,10 @@ class TelloNode(tello.Tello):
             height, width, _ = frame_read.frame.shape
 
             while True:
-                frame_read.frame
+                img = numpy.array(frame_read.frame)
+                msg = self.bridge.cv2_to_imgmsg(arr, 'rgb8')
+                msg.header.frame_id = self.tf_drone
+                self.pub_image_raw.publish(msg)
                 time.sleep(1 / 30)
 
             video.release()
@@ -111,10 +103,9 @@ class TelloNode(tello.Tello):
 
     # Terminate the code and shutdown node.
     def terminate(self, err):
-        self.state = self.STATE_QUIT
         self.node.get_logger().error(str(err))
+        self.tello.end()
         rclpy.shutdown()
-        self.quit()
 
     # Stop all movement in the drone
     def cb_emergency(self, msg):
@@ -127,6 +118,13 @@ class TelloNode(tello.Tello):
     # Land the drone message callback
     def cb_land(self, msg):
         self.tello.land()
+
+
+    # Callback for cmd_vel messages received use to control the drone "analogically"
+    #
+    # This method of controls allow for more precision in the drone control.
+    def cb_cmd_vel(self, msg):
+        self.tello.send_rc_control(msg.linear.x, msg.linear.y, msg.linear.z, msg.agular.z)
 
     # Callback method called when the drone sends light data
     def cb_drone_light_data(self, event, sender, data, **args):
@@ -143,6 +141,7 @@ class TelloNode(tello.Tello):
 
     # Callback method called when the drone sends odom info
     def cb_drone_odom_log_data(self, event, sender, data, **args):
+        return
         # pp = pprint.PrettyPrinter(width=41, compact=True)
         # pp.pprint("----------- MVO DATA-----------")
         # pp.pprint(data.mvo.__dict__)
@@ -199,6 +198,7 @@ class TelloNode(tello.Tello):
 
     # Callback called every time the drone sends information
     def cb_drone_flight_data(self, event, sender, data, **args):
+        return
         # # Publish battery message
         # battery_msg = BatteryState()
         # battery_msg.percentage = float(data.battery_percentage)
@@ -256,13 +256,6 @@ class TelloNode(tello.Tello):
         # msg.temperature_height = float(data.temperature_height)
 
         # self.pub_status.publish(msg)
-
-    # Callback for cmd_vel messages received use to control the drone "analogically"
-    #
-    # This method of controls allow for more precision in the drone control.
-    def cb_cmd_vel(self, msg):
-        self.tello.send_rc_control(msg.linear.x, msg.linear.y, msg.linear.z, msg.agular.z)
-
 
 def main(args=None):
     rclpy.init(args=args)
