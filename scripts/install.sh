@@ -72,6 +72,7 @@ make install -j4
 echo " - Python dependencies"
 pip3 install catkin_pkg rospkg av image opencv-python
 apt install python3-tf*
+pip3 install djitellopy2
 
 echo " - CPP dependencies"
 apt install ros-foxy-ament-cmake* ros-foxy-tf2* ros-foxy-rclcpp* ros-foxy-rosgraph*
@@ -84,4 +85,5 @@ sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_rel
 wget https://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
 apt update
 apt install gazebo11 libgazebo11-dev
+
 

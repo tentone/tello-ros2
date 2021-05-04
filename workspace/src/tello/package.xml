@@ -4,7 +4,7 @@
   <name>tello</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="tentone@todo.todo">tentone</maintainer>
+  <maintainer email="tentone@outlook.com">tentone</maintainer>
   <license>TODO: License declaration</license>
 
   <test_depend>python3-pytest</test_depend>

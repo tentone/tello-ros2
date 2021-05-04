@@ -4,7 +4,7 @@
   <name>tello_control</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="tentone@todo.todo">tentone</maintainer>
+  <maintainer email="tentone@outlook.com">tentone</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

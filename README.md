@@ -1,7 +1,6 @@
 # Tello SLAM
-
+- https://github.com/damiafuentes/DJITelloPy
 - DJI Tello visual SLAM for mapping of indoor environments using ROS.
-
 - Project workspace is divided into sub-workspaces that contain different logic packages.
   - gui: Contain User interface related packages
   - driver: Access to hardware control to collect data from hardware

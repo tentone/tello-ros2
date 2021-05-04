@@ -57,7 +57,6 @@ class TelloControl : public rclcpp::Node
 			publisher_takeoff = this->create_publisher<std_msgs::msg::Empty>("takeoff", 10);
 			publisher_velocity = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
 			
-
 			timer = this->create_wall_timer(1ms, std::bind(&TelloControl::timer_callback, this));
 		}
 
@@ -128,8 +127,6 @@ class TelloControl : public rclcpp::Node
 			{
 				std_msgs::msg::Empty empty = std_msgs::msg::Empty();
 				publisher_takeoff->publish(empty);
-
-				std::cout << "Takeoff Message" << std::endl;
 			}
 			// Land
 			else if(key == (int)('l'))
