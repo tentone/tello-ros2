@@ -71,7 +71,7 @@ class TelloControl : public rclcpp::Node
 		/**
 		 * Speed of the drone in manual control mode.
 		 */
-		double manual_speed = 0.6;
+		double manual_speed = 40;
 
 		rclcpp::TimerBase::SharedPtr timer;
 
@@ -85,6 +85,8 @@ class TelloControl : public rclcpp::Node
 
 		size_t count;
 
+		
+
 		/**
 		 * Method to control the drone using the keyboard inputs.
 		 *
@@ -92,52 +94,53 @@ class TelloControl : public rclcpp::Node
 		 */
 		void manualControl(int key)
 		{
-			// Only send data on changes
-			if(key != last_key)
-			{
-				geometry_msgs::msg::Twist msg = geometry_msgs::msg::Twist();
+			geometry_msgs::msg::Twist msg = geometry_msgs::msg::Twist();
+			
+			if(key == KEY_UP) {msg.linear.x = manual_speed;}
+			if(key == KEY_DOWN) {msg.linear.x = -manual_speed;}
+			if(key == KEY_LEFT) {msg.linear.y = manual_speed;}
+			if(key == KEY_RIGHT) {msg.linear.y = -manual_speed;}
+			if(key == KEY_W) {msg.linear.z = manual_speed;}
+			if(key == KEY_S) {msg.linear.z = -manual_speed;}
+			if(key == KEY_A) {msg.angular.z = manual_speed;}
+			if(key == KEY_D) {msg.angular.z = -manual_speed;}
 
-				if(key == KEY_UP) {msg.linear.x = manual_speed;}
-				if(key == KEY_DOWN) {msg.linear.x = -manual_speed;}
-				if(key == KEY_LEFT) {msg.linear.y = manual_speed;}
-				if(key == KEY_RIGHT) {msg.linear.y = -manual_speed;}
-				if(key == KEY_W) {msg.linear.z = manual_speed;}
-				if(key == KEY_S) {msg.linear.z = -manual_speed;}
-				if(key == KEY_A) {msg.angular.z = manual_speed;}
-				if(key == KEY_D) {msg.angular.z = -manual_speed;}
-
-				publisher_velocity->publish(msg);
-			}
-
-			// Store last key for diffs
-			last_key = key;
+			publisher_velocity->publish(msg);
 		}
+
 	
 		void timer_callback()
 		{
-
 			cv::Mat image = cv::Mat::zeros(100, 100, CV_8UC3);
 			cv::namedWindow("Tello", cv::WINDOW_AUTOSIZE);
 			cv::imshow("Tello", image);	
 
-			int key = cv::waitKey(1);
+			int key = cv::waitKey(15);
+			
+			if (key != last_key)
+			{
+				// Takeoff
+				if(key == (int)('t'))
+				{
+					std_msgs::msg::Empty empty = std_msgs::msg::Empty();
+					publisher_takeoff->publish(empty);
+				}
+				// Land
+				else if(key == (int)('l'))
+				{
+					std_msgs::msg::Empty empty = std_msgs::msg::Empty();
+					publisher_land->publish(empty);
+				}
+				else
+				{
+					manualControl(key);
+				}
+			}
 
-			// Takeoff
-			if(key == (int)('t'))
-			{
-				std_msgs::msg::Empty empty = std_msgs::msg::Empty();
-				publisher_takeoff->publish(empty);
-			}
-			// Land
-			else if(key == (int)('l'))
-			{
-				std_msgs::msg::Empty empty = std_msgs::msg::Empty();
-				publisher_land->publish(empty);
-			}
-			else
-			{
-				manualControl(key);
-			}
+
+
+			// Store last key for diffs
+			last_key = key;
 
 			// auto message = std_msgs::msg::String();
 			// message.data = "Hello, world! " + std::to_string(count++);

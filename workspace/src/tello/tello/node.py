@@ -41,9 +41,6 @@ class TelloNode():
         self.tf_base = str(self.node.get_parameter('tf_base').value)
         self.tf_drone = str(self.node.get_parameter('tf_drone').value)
 
-        # OpenCV bridge
-        self.bridge = CvBridge()
-
         # Configure drone connection
         Tello.TELLO_IP = self.tello_ip
         Tello.RESPONSE_TIMEOUT = int(self.connect_timeout)
@@ -69,37 +66,97 @@ class TelloNode():
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
 
         # Setup ROS subscribers
-        self.sub_emergency = self.node.create_subscription(Empty, 'emergency', self.cb_stop, 10)
+        self.sub_emergency = self.node.create_subscription(Empty, 'emergency', self.cb_emergency, 10)
         self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', self.cb_takeoff, 10)
         self.sub_land = self.node.create_subscription(Empty, 'land', self.cb_land, 10)
         self.sub_cmd_vel = self.node.create_subscription(Twist, 'cmd_vel', self.cb_cmd_vel, 10)
 
         self.start_video_capture()
+        self.start_tello_status()
+        self.start_tello_odom()
+
         self.node.get_logger().info('Tello: Driver node ready')
 
-    """
-    Start video capture thread.
-    """
+    # Start drone info thread
+    def start_tello_odom(self):
+        def status_odom():
+            while True:
+                # TF
+                t = TransformStamped()
+                t.header.stamp = self.node.get_clock().now().to_msg()
+                t.header.frame_id = self.tf_base
+                t.child_frame_id = self.tf_drone
+                t.transform.translation.x = 0.0
+                t.transform.translation.y = 0.0
+                t.transform.translation.z = (self.tello.get_barometer()) / 100.0
+                self.tf_broadcaster.sendTransform(t)
+                time.sleep(0.1)
+
+        thread = threading.Thread(target=status_odom)
+        thread.start()
+        return thread
+
+    # Start drone info thread
+    def start_tello_status(self):
+        def status_loop():
+            while True:
+                # Battery
+                battery_msg = BatteryState()
+                battery_msg.header.frame_id = self.tf_drone
+                battery_msg.percentage = float(self.tello.get_battery())
+                battery_msg.voltage = 3.8
+                battery_msg.design_capacity = 1.1
+                battery_msg.present = True
+                battery_msg.power_supply_technology = 2 # POWER_SUPPLY_TECHNOLOGY_LION
+                battery_msg.power_supply_status = 2 # POWER_SUPPLY_STATUS_DISCHARGING
+                self.pub_battery.publish(battery_msg)
+
+                # Temperature
+                temperature_msg = Temperature()
+                temperature_msg.header.frame_id = self.tf_drone
+                temperature_msg.temperature = self.tello.get_temperature()
+                self.pub_temperature.publish(temperature_msg)
+
+                # IMU
+                imu_msg = Imu()
+                imu_msg.header.stamp = self.node.get_clock().now().to_msg()
+                imu_msg.header.frame_id = self.tf_drone
+                imu_msg.linear_acceleration.x = self.tello.get_acceleration_x()
+                imu_msg.linear_acceleration.y = self.tello.get_acceleration_y()
+                imu_msg.linear_acceleration.z = self.tello.get_acceleration_z()
+                self.pub_imu.publish(imu_msg)
+
+                time.sleep(1)
+
+        thread = threading.Thread(target=status_loop)
+        thread.start()
+        return thread
+
+
+    # Start video capture thread.
     def start_video_capture(self):
         self.tello.streamon()
-        frame_read = self.tello.get_frame_read()
+
+        # OpenCV bridge
+        self.bridge = CvBridge()
 
         def video_capture_thread():
-            # Create a video write
-            height, width, _ = frame_read.frame.shape
+            frame_read = self.tello.get_frame_read()
 
             while True:
-                img = numpy.array(frame_read.frame)
-                msg = self.bridge.cv2_to_imgmsg(arr, 'rgb8')
-                msg.header.frame_id = self.tf_drone
-                self.pub_image_raw.publish(msg)
-                time.sleep(1 / 30)
+                frame = frame_read.frame
+                cv2.imshow("picture", frame)
+                
+                # msg = self.bridge.cv2_to_imgmsg(numpy.array(frame), 'rgb8')
+                # msg.header.frame_id = self.tf_drone
+                # self.pub_image_raw.publish(msg)
 
-            video.release()
+                cv2.waitKey(10)
 
         # We need to run the recorder in a seperate thread, otherwise blocking options would prevent frames from getting added to the video
-        recorder = Thread(target=video_capture_thread)
-        recorder.start()
+        thread = threading.Thread(target=video_capture_thread)
+        thread.start()
+        return thread
 
     # Terminate the code and shutdown node.
     def terminate(self, err):
@@ -119,12 +176,11 @@ class TelloNode():
     def cb_land(self, msg):
         self.tello.land()
 
-
     # Callback for cmd_vel messages received use to control the drone "analogically"
     #
     # This method of controls allow for more precision in the drone control.
     def cb_cmd_vel(self, msg):
-        self.tello.send_rc_control(msg.linear.x, msg.linear.y, msg.linear.z, msg.agular.z)
+        self.tello.send_rc_control(int(msg.linear.x), int(msg.linear.y), int(msg.linear.z), int(msg.angular.z))
 
     # Callback method called when the drone sends light data
     def cb_drone_light_data(self, event, sender, data, **args):
@@ -158,15 +214,7 @@ class TelloNode():
         # quaternion = (data.imu.q0, data.imu.q1, data.imu.q2, data.imu.q3)
         # euler = (data.imu.gyro_x, data.imu.gyro_y, data.imu.gyro_z)
 
-        # # Publish drone transform
-        # t = TransformStamped()
-        # t.header.stamp = self.node.get_clock().now().to_msg()
-        # t.header.frame_id = self.tf_base
-        # t.child_frame_id = self.tf_drone
-        # t.transform.translation.x = data.mvo.pos_x
-        # t.transform.translation.y = data.mvo.pos_y
-        # t.transform.translation.z = data.mvo.pos_z
-        # self.tf_broadcaster.sendTransform(t)
+
 
         # # Publish odom data
         # odom_msg = Odometry()
@@ -180,40 +228,12 @@ class TelloNode():
         # odom_msg.twist.twist.linear.z = data.mvo.vel_z
         # self.pub_odom.publish(odom_msg)
 
-        # # Publish IMU data
-        # imu_msg = Imu()
-        # imu_msg.header.stamp = self.node.get_clock().now().to_msg()
-        # imu_msg.header.frame_id = self.tf_drone
-        # imu_msg.linear_acceleration.x = data.imu.acc_x
-        # imu_msg.linear_acceleration.y = data.imu.acc_y
-        # imu_msg.linear_acceleration.z = data.imu.acc_z
-        # imu_msg.angular_velocity.x = data.imu.gyro_x
-        # imu_msg.angular_velocity.y = data.imu.gyro_y
-        # imu_msg.angular_velocity.z = data.imu.gyro_z
-        # imu_msg.orientation.x = data.imu.q0
-        # imu_msg.orientation.y = data.imu.q1
-        # imu_msg.orientation.z = data.imu.q2
-        # imu_msg.orientation.w = data.imu.q3
-        # self.pub_imu.publish(imu_msg)
 
     # Callback called every time the drone sends information
     def cb_drone_flight_data(self, event, sender, data, **args):
         return
         # # Publish battery message
-        # battery_msg = BatteryState()
-        # battery_msg.percentage = float(data.battery_percentage)
-        # battery_msg.voltage = 3.8
-        # battery_msg.design_capacity = 1.1
-        # battery_msg.present = True
-        # battery_msg.power_supply_technology = 2 # POWER_SUPPLY_TECHNOLOGY_LION
-        # battery_msg.power_supply_status = 2 # POWER_SUPPLY_STATUS_DISCHARGING
-        # self.pub_battery.publish(battery_msg)
 
-        # # Publish temperature data
-        # temperature_msg = Temperature()
-        # temperature_msg.header.frame_id = self.tf_drone
-        # temperature_msg.temperature = float(data.temperature_height)
-        # self.pub_temperature.publish(temperature_msg)
 
         # # Publish flight data
         # msg = FlightStatus()
