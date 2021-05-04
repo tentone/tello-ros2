@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(control)
+project(tello_control)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -14,9 +14,9 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
-add_executable(control src/main.cpp)
-ament_target_dependencies(control rclcpp std_msgs)
+add_executable(tello_control src/main.cpp)
+ament_target_dependencies(tello_control rclcpp std_msgs)
 
-install(TARGETS control DESTINATION lib/${PROJECT_NAME})
+install(TARGETS tello_control DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

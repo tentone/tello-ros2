@@ -10,7 +10,7 @@ import av
 import tf2_ros
 
 from . import tello
-from tellopy_msg.msg import FlightStatus
+from tello_msg.msg import FlightStatus
 from std_msgs.msg import Empty, UInt8, UInt8, Bool
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
 from geometry_msgs.msg import Twist, TransformStamped
