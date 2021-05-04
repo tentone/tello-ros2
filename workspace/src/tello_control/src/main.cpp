@@ -7,6 +7,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_msgs/msg/empty.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 
 #define PI 3.14159265359
@@ -52,10 +53,12 @@ class TelloControl : public rclcpp::Node
 		TelloControl() : Node("control"), count(0)
 		{
 			publisher = this->create_publisher<std_msgs::msg::String>("topic", 10);
+			publisher_land = this->create_publisher<std_msgs::msg::Empty>("land", 10);
+			publisher_takeoff = this->create_publisher<std_msgs::msg::Empty>("takeoff", 10);
+			publisher_velocity = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
+			
 
-			publisher_velocity = this->create_publisher<geometry_msgs::msg::Twist>("/tello/cmd_vel", 10);
-
-			timer = this->create_wall_timer(100ms, std::bind(&TelloControl::timer_callback, this));
+			timer = this->create_wall_timer(1ms, std::bind(&TelloControl::timer_callback, this));
 		}
 
 	private:
@@ -76,6 +79,10 @@ class TelloControl : public rclcpp::Node
 		rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher;
 
 		rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_velocity;
+
+		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_takeoff;
+
+		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_land;
 
 		size_t count;
 
@@ -114,9 +121,31 @@ class TelloControl : public rclcpp::Node
 	
 		void timer_callback()
 		{
-			// int key = getch(100);
-			// manualControl(key);
+
+			cv::Mat image = cv::Mat::zeros(100, 100, CV_8UC3);
+			cv::namedWindow("Tello", cv::WINDOW_AUTOSIZE);
+			cv::imshow("Tello", image);	
+
+			int key = cv::waitKey(1);
+			
 			// std::cout << key << std::endl;
+
+			// Takeoff
+			if(key == KEY_T)
+			{
+				std_msgs::msg::Empty empty = std_msgs::msg::Empty();
+				publisher_takeoff->publish(empty);
+			}
+			// Land
+			else if(key == KEY_L)
+			{
+				std_msgs::msg::Empty empty = std_msgs::msg::Empty();
+				publisher_land->publish(empty);
+			}
+			else
+			{
+				manualControl(key);
+			}
 
 			// auto message = std_msgs::msg::String();
 			// message.data = "Hello, world! " + std::to_string(count++);

@@ -79,58 +79,17 @@ class TelloNode(tello.Tello):
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
 
         # Setup ROS subscribers
-        def cb_stop(msg):
-            self.right(0)
-            self.left(0)
-            self.up(0)
-            self.down(0)
-            self.forward(0)
-            self.backward(0)
-            self.clockwise(0)
-            self.counter_clockwise(0)
-        
-        self.sub_stop = self.node.create_subscription(Empty, 'stop', cb_stop, 10)
-
-        def cb_takeoff(msg):
-            self.takeoff()
-        self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', cb_takeoff, 10)
-
-        def cb_land(msg):
-            self.land()
-        self.sub_land = self.node.create_subscription(Empty, 'land', cb_land, 10)
-
-        def cb_left(msg):
-            self.left(msg.data)
-        self.sub_left = self.node.create_subscription(UInt8, 'left', cb_left, 10)
-
-        def cb_right(msg):
-            self.right(msg.data)
-        self.sub_right = self.node.create_subscription(UInt8, 'right', cb_right, 10)
-
-        def cb_up(msg):
-            self.up(msg.data)
-        self.sub_up = self.node.create_subscription(UInt8, 'up', cb_up, 10)
-
-        def cb_down(msg):
-            self.down(msg.data)
-        self.sub_down = self.node.create_subscription(UInt8, 'down', cb_down, 10)
-
-        def cb_forward(msg):
-            self.forward(msg.data)
-        self.sub_forward = self.node.create_subscription(UInt8, 'forward', cb_forward, 10)
-
-        def cb_backward(msg):
-            self.backward(msg.data)
-        self.sub_backward = self.node.create_subscription(UInt8, 'backward', cb_backward, 10)
-
-        def cb_counter_clockwise(msg):
-            self.clockwise(msg.data)
-        self.sub_counter_clockwise = self.node.create_subscription(UInt8, 'counter_clockwise', cb_counter_clockwise, 10)
-
-        def cb_clockwise(msg):
-            self.clockwise(msg.data)
-        self.sub_clockwise = self.node.create_subscription(UInt8, 'clockwise', cb_clockwise, 10)
-
+        self.sub_stop = self.node.create_subscription(Empty, 'stop', self.cb_stop, 10)
+        self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', self.cb_takeoff, 10)
+        self.sub_land = self.node.create_subscription(Empty, 'land', self.cb_land, 10)
+        self.sub_left = self.node.create_subscription(UInt8, 'left', self.cb_left, 10)
+        self.sub_right = self.node.create_subscription(UInt8, 'right', self.cb_right, 10)
+        self.sub_up = self.node.create_subscription(UInt8, 'up', self.cb_up, 10)
+        self.sub_down = self.node.create_subscription(UInt8, 'down', self.cb_down, 10)
+        self.sub_forward = self.node.create_subscription(UInt8, 'forward', self.cb_forward, 10)
+        self.sub_backward = self.node.create_subscription(UInt8, 'backward', self.cb_backward, 10)
+        self.sub_counter_clockwise = self.node.create_subscription(UInt8, 'counter_clockwise', self.cb_counter_clockwise, 10)
+        self.sub_clockwise = self.node.create_subscription(UInt8, 'clockwise', self.cb_clockwise, 10)
         self.sub_cmd_vel = self.node.create_subscription(Twist, 'cmd_vel', self.cb_cmd_vel, 10)
         self.sub_fast_mode = self.node.create_subscription(Bool, 'fast_mode', self.cb_fast_mode, 10)
         self.sub_throw_takeoff = self.node.create_subscription(Empty, 'throw_takeoff', self.cb_throw_takeoff, 10)
@@ -139,11 +98,11 @@ class TelloNode(tello.Tello):
         # Subscribe data from drone
         self.subscribe(self.EVENT_FLIGHT_DATA, self.cb_drone_flight_data)
         self.subscribe(self.EVENT_LOG_DATA, self.cb_drone_odom_log_data)
-        # self.subscribe(self.EVENT_LIGHT, self.cb_drone_light_data)
+        self.subscribe(self.EVENT_LIGHT, self.cb_drone_light_data)
 
         # Frame grabber thread
-        self.frame_thread = threading.Thread(target=self.camera_loop)
-        self.frame_thread.start()
+        # self.frame_thread = threading.Thread(target=self.camera_loop)
+        # self.frame_thread.start()
 
         # Configure video encoder rate
         self.set_video_encoder_rate(VIDEO_1MBS)
@@ -215,6 +174,47 @@ class TelloNode(tello.Tello):
         rclpy.shutdown()
         self.quit()
 
+    def cb_stop(self, msg):
+        self.right(0)
+        self.left(0)
+        self.up(0)
+        self.down(0)
+        self.forward(0)
+        self.backward(0)
+        self.clockwise(0)
+        self.counter_clockwise(0)
+
+    def cb_takeoff(self, msg):
+        print('takeoff message received')
+        self.takeoff()
+
+    def cb_land(msg):
+        self.land()
+
+    def cb_left(self, msg):
+        self.left(msg.data)
+
+    def cb_right(self, msg):
+        self.right(msg.data)
+
+    def cb_up(self, msg):
+        self.up(msg.data)
+
+    def cb_down(self, msg):
+        self.down(msg.data)
+
+    def cb_forward(self, msg):
+        self.forward(msg.data)
+
+    def cb_backward(self, msg):
+        self.backward(msg.data)
+
+    def cb_counter_clockwise(self, msg):
+        self.clockwise(msg.data)
+
+    def cb_clockwise(self, msg):
+        self.clockwise(msg.data)
+
     def cb_shutdown(self):
         self.quit()
 
@@ -223,27 +223,29 @@ class TelloNode(tello.Tello):
 
     # Callback method called when the drone sends light data
     def cb_drone_light_data(self, event, sender, data, **args):
+        # pp = pprint.PrettyPrinter(width=41, compact=True)
+        # pp.pprint("------------LDATA--------------"
+        # pp.pprint(data.__dict__)
+        # pp.pprint("----------- MVO DATA-----------"
+        # pp.pprint(data.mvo.__dict__)
+        # pp.pprint("----------- IMU DATA-----------"
+        # pp.pprint(data.imu.__dict__)
+        # pp.pprint("-------------------------------"
+
         return
-        #print("------------LDATA--------------"
-        #print data.__dict__
-        #print("----------- MVO DATA-----------"
-        #print data.mvo.__dict__
-        #print("----------- IMU DATA-----------"
-        #print data.imu.__dict__
-        #print("-------------------------------"
 
     # Callback method called when the drone sends odom info
     def cb_drone_odom_log_data(self, event, sender, data, **args):
-        pp = pprint.PrettyPrinter(width=41, compact=True)
-        pp.pprint("----------- MVO DATA-----------")
-        pp.pprint(data.mvo.__dict__)
-        pp.pprint(data.mvo.log.__dict__)
-        pp.pprint("----------- IMU DATA-----------")
-        pp.pprint(data.imu.__dict__)
-        pp.pprint(data.imu.log.__dict__)
-        pp.pprint("----------LOG DATA-------------")
-        pp.pprint(data.log.__dict__)
-        pp.pprint("-------------------------------")
+        # pp = pprint.PrettyPrinter(width=41, compact=True)
+        # pp.pprint("----------- MVO DATA-----------")
+        # pp.pprint(data.mvo.__dict__)
+        # pp.pprint(data.mvo.log.__dict__)
+        # pp.pprint("----------- IMU DATA-----------")
+        # pp.pprint(data.imu.__dict__)
+        # pp.pprint(data.imu.log.__dict__)
+        # pp.pprint("----------LOG DATA-------------")
+        # pp.pprint(data.log.__dict__)
+        # pp.pprint("-------------------------------")
 
         # Position data
         position = (data.mvo.pos_x, data.mvo.pos_y, data.mvo.pos_z)
@@ -377,7 +379,7 @@ def main(args=None):
     drone = TelloNode(node)
 
     while rclpy.ok() and drone.state != drone.STATE_QUIT:
-        time.sleep(1)
+        continue
 
     drone.cb_shutdown()
     node.destroy_node()
