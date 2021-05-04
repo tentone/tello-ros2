@@ -47,7 +47,6 @@ class TelloNode(tello.Tello):
 
         # OpenCV bridge
         self.bridge = CvBridge()
-        self.frame_thread = None
 
         super().__init__(self.tello_ip)
 
@@ -87,7 +86,28 @@ class TelloNode(tello.Tello):
         # self.subscribe(self.EVENT_LIGHT, self.cb_drone_light_data)
 
         self.node.get_logger().info('Tello: Driver node ready')
+    
 
+    """
+    Start video capture thread.
+    """
+    def start_video_capture(self):
+        self.tello.streamon()
+        frame_read = self.tello.get_frame_read()
+
+        def video_capture_thread():
+            # Create a video write
+            height, width, _ = frame_read.frame.shape
+
+            while True:
+                frame_read.frame
+                time.sleep(1 / 30)
+
+            video.release()
+
+        # We need to run the recorder in a seperate thread, otherwise blocking options would prevent frames from getting added to the video
+        recorder = Thread(target=video_capture_thread)
+        recorder.start()
 
     # Terminate the code and shutdown node.
     def terminate(self, err):
