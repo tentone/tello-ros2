@@ -42,20 +42,20 @@ def generate_launch_description():
             namespace='/',
             name='rqt',
             respawn=True
-        ),
-        Node(
-            package='camera_calibration',
-            executable='cameracalibrator',
-            output='screen',
-            respawn=True,
-            namespace='/',
-            name='calibration',
-            arguments=['--size', '7x9', '--square', '0.20'],
-            parameters=[
-                {'image': '/image_raw'},
-                {'camera': '/camera_info'}
-            ]
         )
+        # Node(
+        #     package='camera_calibration',
+        #     executable='cameracalibrator',
+        #     output='screen',
+        #     respawn=True,
+        #     namespace='/',
+        #     name='calibration',
+        #     arguments=['--size', '7x9', '--square', '0.20'],
+        #     parameters=[
+        #         {'image': '/image_raw'},
+        #         {'camera': '/camera_info'}
+        #     ]
+        # )
         # Node(
         #     package='tf2_ros',
         #     executable='static_transform_publisher',
