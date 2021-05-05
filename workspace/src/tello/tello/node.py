@@ -53,7 +53,19 @@ class TelloNode():
 
         self.node.get_logger().info('Tello: Connected to drone')
 
-        # Setup ROS publishers
+        # Publishers and subscribers
+        self.setup_publishers()
+        self.setup_subscribers()
+
+        # Processing threads
+        self.start_video_capture()
+        self.start_tello_status()
+        self.start_tello_odom()
+
+        self.node.get_logger().info('Tello: Driver node ready')
+
+    # Setup ROS publishers of the node.
+    def setup_publishers(self):
         self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', 10)
         self.pub_camera_info = self.node.create_publisher(CameraInfo, 'camera_info', 10)
         self.pub_status = self.node.create_publisher(FlightStatus, 'status', 10)
@@ -62,20 +74,15 @@ class TelloNode():
         self.pub_temperature = self.node.create_publisher(Temperature, 'temperature', 10)
         self.pub_odom = self.node.create_publisher(Odometry, 'odom', 10)
 
-        # Setup TF broadcaster
+        # TF broadcaster
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
-
-        # Setup ROS subscribers
+    
+    # Setup the topic subscribers of the node.
+    def setup_subscribers(self):
         self.sub_emergency = self.node.create_subscription(Empty, 'emergency', self.cb_emergency, 10)
         self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', self.cb_takeoff, 10)
         self.sub_land = self.node.create_subscription(Empty, 'land', self.cb_land, 10)
         self.sub_cmd_vel = self.node.create_subscription(Twist, 'cmd_vel', self.cb_cmd_vel, 10)
-
-        self.start_video_capture()
-        self.start_tello_status()
-        self.start_tello_odom()
-
-        self.node.get_logger().info('Tello: Driver node ready')
 
     # Start drone info thread
     def start_tello_odom(self, rate=0.1):
@@ -101,30 +108,61 @@ class TelloNode():
         def status_loop():
             while True:
                 # Battery
-                battery_msg = BatteryState()
-                battery_msg.header.frame_id = self.tf_drone
-                battery_msg.percentage = float(self.tello.get_battery())
-                battery_msg.voltage = 3.8
-                battery_msg.design_capacity = 1.1
-                battery_msg.present = True
-                battery_msg.power_supply_technology = 2 # POWER_SUPPLY_TECHNOLOGY_LION
-                battery_msg.power_supply_status = 2 # POWER_SUPPLY_STATUS_DISCHARGING
-                self.pub_battery.publish(battery_msg)
+                if self.pub_battery.get_subscription_count() > 0:
+                    battery_msg = BatteryState()
+                    battery_msg.header.frame_id = self.tf_drone
+                    battery_msg.percentage = float(self.tello.get_battery())
+                    battery_msg.voltage = 3.8
+                    battery_msg.design_capacity = 1.1
+                    battery_msg.present = True
+                    battery_msg.power_supply_technology = 2 # POWER_SUPPLY_TECHNOLOGY_LION
+                    battery_msg.power_supply_status = 2 # POWER_SUPPLY_STATUS_DISCHARGING
+                    self.pub_battery.publish(battery_msg)
 
                 # Temperature
-                temperature_msg = Temperature()
-                temperature_msg.header.frame_id = self.tf_drone
-                temperature_msg.temperature = self.tello.get_temperature()
-                self.pub_temperature.publish(temperature_msg)
+                if self.pub_temperature.get_subscription_count() > 0:
+                    temperature_msg = Temperature()
+                    temperature_msg.header.frame_id = self.tf_drone
+                    temperature_msg.temperature = self.tello.get_temperature()
+                    self.pub_temperature.publish(temperature_msg)
 
                 # IMU
-                imu_msg = Imu()
-                imu_msg.header.stamp = self.node.get_clock().now().to_msg()
-                imu_msg.header.frame_id = self.tf_drone
-                imu_msg.linear_acceleration.x = self.tello.get_acceleration_x()
-                imu_msg.linear_acceleration.y = self.tello.get_acceleration_y()
-                imu_msg.linear_acceleration.z = self.tello.get_acceleration_z()
-                self.pub_imu.publish(imu_msg)
+                if self.pub_imu.get_subscription_count() > 0:
+                    imu_msg = Imu()
+                    imu_msg.header.stamp = self.node.get_clock().now().to_msg()
+                    imu_msg.header.frame_id = self.tf_drone
+                    imu_msg.linear_acceleration.x = self.tello.get_acceleration_x()
+                    imu_msg.linear_acceleration.y = self.tello.get_acceleration_y()
+                    imu_msg.linear_acceleration.z = self.tello.get_acceleration_z()
+                    self.pub_imu.publish(imu_msg)
+
+                # Publish flight data
+                if self.pub_status.get_subscription_count() > 0:
+                    msg = FlightStatus()
+                    msg.acceleration.x = self.tello.get_acceleration_x()
+                    msg.acceleration.y = self.tello.get_acceleration_y()
+                    msg.acceleration.z = self.tello.get_acceleration_z()
+
+                    msg.speed.x = self.tello.get_speed_x()
+                    msg.speed.y = self.tello.get_speed_y()
+                    msg.speed.z = self.tello.get_speed_z()
+
+                    msg.barometer = self.tello.get_barometer()
+                    msg.distance_tof = self.tello.get_distance_tof()
+
+                    msg.fligth_time = self.tello.get_flight_time()
+
+                    msg.battery = self.tello.get_battery()
+
+                    msg.highest_temperature = self.tello.get_highest_temperature()
+                    msg.lowest_temperature = self.tello.get_lowest_temperature()
+                    msg.temperature = self.tello.get_temperature()
+
+                    msg.pitch = self.tello.get_pitch()
+                    msg.roll = self.tello.get_roll()
+                    msg.yaw = self.tello.get_yaw()
+
+                    self.pub_status.publish(msg)
 
                 time.sleep(rate)
 
@@ -145,7 +183,7 @@ class TelloNode():
 
             while True:
                 frame = frame_read.frame
-                
+
                 # cv2.imshow("picture", frame)
                 # cv2.waitKey(10)
 
@@ -202,47 +240,6 @@ class TelloNode():
     # odom_msg.twist.twist.linear.z = data.mvo.vel_z
     # self.pub_odom.publish(odom_msg)
 
-    # # Publish flight data
-    # msg = FlightStatus()
-    # msg.imu_state = data.imu_state
-    # msg.pressure_state = data.pressure_state
-    # msg.down_visual_state = data.down_visual_state
-    # msg.gravity_state = data.gravity_state
-    # msg.wind_state = data.wind_state
-    # msg.drone_hover = data.drone_hover
-    # msg.factory_mode = data.factory_mode
-    # msg.imu_calibration_state = data.imu_calibration_state
-    # msg.fly_mode = data.fly_mode #1 Landed | 6 Flying
-    # msg.camera_state = data.camera_state
-    # msg.electrical_machinery_state = data.electrical_machinery_state
-
-    # msg.front_in = data.front_in
-    # msg.front_out = data.front_out
-    # msg.front_lsc = data.front_lsc
-
-    # msg.power_state = data.power_state
-    # msg.battery_state = data.battery_state
-    # msg.battery_low = data.battery_low
-    # msg.battery_lower = data.battery_lower
-    # msg.battery_percentage = data.battery_percentage
-    # msg.drone_battery_left = data.drone_battery_left
-
-    # msg.light_strength = data.light_strength
-
-    # msg.fly_speed = float(data.fly_speed)
-    # msg.east_speed = float(data.east_speed)
-    # msg.north_speed = float(data.north_speed)
-    # msg.ground_speed = float(data.ground_speed)
-    # msg.fly_time = float(data.fly_time)
-    # msg.drone_fly_time_left = float(data.drone_fly_time_left)
-
-    # msg.wifi_strength = data.wifi_strength
-    # msg.wifi_disturb = data.wifi_disturb
-
-    # msg.height = float(data.height)
-    # msg.temperature_height = float(data.temperature_height)
-
-    # self.pub_status.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
