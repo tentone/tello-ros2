@@ -78,7 +78,7 @@ class TelloNode():
         self.node.get_logger().info('Tello: Driver node ready')
 
     # Start drone info thread
-    def start_tello_odom(self):
+    def start_tello_odom(self, rate=0.1):
         def status_odom():
             while True:
                 # TF
@@ -90,14 +90,14 @@ class TelloNode():
                 t.transform.translation.y = 0.0
                 t.transform.translation.z = (self.tello.get_barometer()) / 100.0
                 self.tf_broadcaster.sendTransform(t)
-                time.sleep(0.1)
+                time.sleep(rate)
 
         thread = threading.Thread(target=status_odom)
         thread.start()
         return thread
 
     # Start drone info thread
-    def start_tello_status(self):
+    def start_tello_status(self, rate=0.5):
         def status_loop():
             while True:
                 # Battery
@@ -126,7 +126,7 @@ class TelloNode():
                 imu_msg.linear_acceleration.z = self.tello.get_acceleration_z()
                 self.pub_imu.publish(imu_msg)
 
-                time.sleep(1)
+                time.sleep(rate)
 
         thread = threading.Thread(target=status_loop)
         thread.start()
@@ -134,7 +134,7 @@ class TelloNode():
 
 
     # Start video capture thread.
-    def start_video_capture(self):
+    def start_video_capture(self, rate=1.0/30.0):
         self.tello.streamon()
 
         # OpenCV bridge
@@ -145,13 +145,16 @@ class TelloNode():
 
             while True:
                 frame = frame_read.frame
-                cv2.imshow("picture", frame)
                 
-                # msg = self.bridge.cv2_to_imgmsg(numpy.array(frame), 'rgb8')
-                # msg.header.frame_id = self.tf_drone
-                # self.pub_image_raw.publish(msg)
+                # cv2.imshow("picture", frame)
+                # cv2.waitKey(10)
 
-                cv2.waitKey(10)
+                msg = self.bridge.cv2_to_imgmsg(numpy.array(frame), 'bgr8')
+                msg.header.frame_id = self.tf_drone
+                self.pub_image_raw.publish(msg)
+
+                time.sleep(rate)
+                
 
         # We need to run the recorder in a seperate thread, otherwise blocking options would prevent frames from getting added to the video
         thread = threading.Thread(target=video_capture_thread)
@@ -182,100 +185,64 @@ class TelloNode():
     def cb_cmd_vel(self, msg):
         self.tello.send_rc_control(int(msg.linear.x), int(msg.linear.y), int(msg.linear.z), int(msg.angular.z))
 
-    # Callback method called when the drone sends light data
-    def cb_drone_light_data(self, event, sender, data, **args):
-        # pp = pprint.PrettyPrinter(width=41, compact=True)
-        # pp.pprint("------------LDATA--------------"
-        # pp.pprint(data.__dict__)
-        # pp.pprint("----------- MVO DATA-----------"
-        # pp.pprint(data.mvo.__dict__)
-        # pp.pprint("----------- IMU DATA-----------"
-        # pp.pprint(data.imu.__dict__)
-        # pp.pprint("-------------------------------"
+    # # Position data
+    # position = (data.mvo.pos_x, data.mvo.pos_y, data.mvo.pos_z)
+    # quaternion = (data.imu.q0, data.imu.q1, data.imu.q2, data.imu.q3)
+    # euler = (data.imu.gyro_x, data.imu.gyro_y, data.imu.gyro_z)
 
-        return
+    # # Publish odom data
+    # odom_msg = Odometry()
+    # odom_msg.header.stamp = self.node.get_clock().now().to_msg()
+    # odom_msg.header.frame_id = self.tf_base
+    # odom_msg.pose.pose.position.x = data.mvo.pos_x
+    # odom_msg.pose.pose.position.y = data.mvo.pos_y
+    # odom_msg.pose.pose.position.z = data.mvo.pos_z
+    # odom_msg.twist.twist.linear.x = data.mvo.vel_x
+    # odom_msg.twist.twist.linear.y = data.mvo.vel_y
+    # odom_msg.twist.twist.linear.z = data.mvo.vel_z
+    # self.pub_odom.publish(odom_msg)
 
-    # Callback method called when the drone sends odom info
-    def cb_drone_odom_log_data(self, event, sender, data, **args):
-        return
-        # pp = pprint.PrettyPrinter(width=41, compact=True)
-        # pp.pprint("----------- MVO DATA-----------")
-        # pp.pprint(data.mvo.__dict__)
-        # pp.pprint(data.mvo.log.__dict__)
-        # pp.pprint("----------- IMU DATA-----------")
-        # pp.pprint(data.imu.__dict__)
-        # pp.pprint(data.imu.log.__dict__)
-        # pp.pprint("----------LOG DATA-------------")
-        # pp.pprint(data.log.__dict__)
-        # pp.pprint("-------------------------------")
+    # # Publish flight data
+    # msg = FlightStatus()
+    # msg.imu_state = data.imu_state
+    # msg.pressure_state = data.pressure_state
+    # msg.down_visual_state = data.down_visual_state
+    # msg.gravity_state = data.gravity_state
+    # msg.wind_state = data.wind_state
+    # msg.drone_hover = data.drone_hover
+    # msg.factory_mode = data.factory_mode
+    # msg.imu_calibration_state = data.imu_calibration_state
+    # msg.fly_mode = data.fly_mode #1 Landed | 6 Flying
+    # msg.camera_state = data.camera_state
+    # msg.electrical_machinery_state = data.electrical_machinery_state
 
-        # # Position data
-        # position = (data.mvo.pos_x, data.mvo.pos_y, data.mvo.pos_z)
-        # quaternion = (data.imu.q0, data.imu.q1, data.imu.q2, data.imu.q3)
-        # euler = (data.imu.gyro_x, data.imu.gyro_y, data.imu.gyro_z)
+    # msg.front_in = data.front_in
+    # msg.front_out = data.front_out
+    # msg.front_lsc = data.front_lsc
 
+    # msg.power_state = data.power_state
+    # msg.battery_state = data.battery_state
+    # msg.battery_low = data.battery_low
+    # msg.battery_lower = data.battery_lower
+    # msg.battery_percentage = data.battery_percentage
+    # msg.drone_battery_left = data.drone_battery_left
 
+    # msg.light_strength = data.light_strength
 
-        # # Publish odom data
-        # odom_msg = Odometry()
-        # odom_msg.header.stamp = self.node.get_clock().now().to_msg()
-        # odom_msg.header.frame_id = self.tf_base
-        # odom_msg.pose.pose.position.x = data.mvo.pos_x
-        # odom_msg.pose.pose.position.y = data.mvo.pos_y
-        # odom_msg.pose.pose.position.z = data.mvo.pos_z
-        # odom_msg.twist.twist.linear.x = data.mvo.vel_x
-        # odom_msg.twist.twist.linear.y = data.mvo.vel_y
-        # odom_msg.twist.twist.linear.z = data.mvo.vel_z
-        # self.pub_odom.publish(odom_msg)
+    # msg.fly_speed = float(data.fly_speed)
+    # msg.east_speed = float(data.east_speed)
+    # msg.north_speed = float(data.north_speed)
+    # msg.ground_speed = float(data.ground_speed)
+    # msg.fly_time = float(data.fly_time)
+    # msg.drone_fly_time_left = float(data.drone_fly_time_left)
 
+    # msg.wifi_strength = data.wifi_strength
+    # msg.wifi_disturb = data.wifi_disturb
 
-    # Callback called every time the drone sends information
-    def cb_drone_flight_data(self, event, sender, data, **args):
-        return
-        # # Publish battery message
+    # msg.height = float(data.height)
+    # msg.temperature_height = float(data.temperature_height)
 
-
-        # # Publish flight data
-        # msg = FlightStatus()
-        # msg.imu_state = data.imu_state
-        # msg.pressure_state = data.pressure_state
-        # msg.down_visual_state = data.down_visual_state
-        # msg.gravity_state = data.gravity_state
-        # msg.wind_state = data.wind_state
-        # msg.drone_hover = data.drone_hover
-        # msg.factory_mode = data.factory_mode
-        # msg.imu_calibration_state = data.imu_calibration_state
-        # msg.fly_mode = data.fly_mode #1 Landed | 6 Flying
-        # msg.camera_state = data.camera_state
-        # msg.electrical_machinery_state = data.electrical_machinery_state
-
-        # msg.front_in = data.front_in
-        # msg.front_out = data.front_out
-        # msg.front_lsc = data.front_lsc
-
-        # msg.power_state = data.power_state
-        # msg.battery_state = data.battery_state
-        # msg.battery_low = data.battery_low
-        # msg.battery_lower = data.battery_lower
-        # msg.battery_percentage = data.battery_percentage
-        # msg.drone_battery_left = data.drone_battery_left
-
-        # msg.light_strength = data.light_strength
-
-        # msg.fly_speed = float(data.fly_speed)
-        # msg.east_speed = float(data.east_speed)
-        # msg.north_speed = float(data.north_speed)
-        # msg.ground_speed = float(data.ground_speed)
-        # msg.fly_time = float(data.fly_time)
-        # msg.drone_fly_time_left = float(data.drone_fly_time_left)
-
-        # msg.wifi_strength = data.wifi_strength
-        # msg.wifi_disturb = data.wifi_disturb
-
-        # msg.height = float(data.height)
-        # msg.temperature_height = float(data.temperature_height)
-
-        # self.pub_status.publish(msg)
+    # self.pub_status.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
