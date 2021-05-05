@@ -27,3 +27,6 @@ int32 pitch
 int32 roll
 # Yaw in degrees
 int32 yaw
+
+# Wi-Fi SNR
+string wifi_snr

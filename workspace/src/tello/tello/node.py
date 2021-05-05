@@ -15,7 +15,7 @@ from djitellopy import Tello
 
 from rclpy.node import Node
 from tello_msg.msg import TelloStatus, TelloID, TelloWifiConfig
-from std_msgs.msg import Empty, UInt8, UInt8, Bool
+from std_msgs.msg import Empty, UInt8, UInt8, Bool, String
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
 from geometry_msgs.msg import Twist, TransformStamped
 from nav_msgs.msg import Odometry
@@ -66,25 +66,26 @@ class TelloNode():
 
     # Setup ROS publishers of the node.
     def setup_publishers(self):
-        self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', 10)
-        self.pub_camera_info = self.node.create_publisher(CameraInfo, 'camera_info', 10)
-        self.pub_status = self.node.create_publisher(TelloStatus, 'status', 10)
-        self.pub_id = self.node.create_publisher(TelloID, 'id', 10)
-        self.pub_imu = self.node.create_publisher(Imu, 'imu', 10)
-        self.pub_battery = self.node.create_publisher(BatteryState, 'battery', 10)
-        self.pub_temperature = self.node.create_publisher(Temperature, 'temperature', 10)
-        self.pub_odom = self.node.create_publisher(Odometry, 'odom', 10)
+        self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', 1)
+        self.pub_camera_info = self.node.create_publisher(CameraInfo, 'camera_info', 1)
+        self.pub_status = self.node.create_publisher(TelloStatus, 'status', 1)
+        self.pub_id = self.node.create_publisher(TelloID, 'id', 1)
+        self.pub_imu = self.node.create_publisher(Imu, 'imu', 1)
+        self.pub_battery = self.node.create_publisher(BatteryState, 'battery', 1)
+        self.pub_temperature = self.node.create_publisher(Temperature, 'temperature', 1)
+        self.pub_odom = self.node.create_publisher(Odometry, 'odom', 1)
 
         # TF broadcaster
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
     
     # Setup the topic subscribers of the node.
     def setup_subscribers(self):
-        self.sub_emergency = self.node.create_subscription(Empty, 'emergency', self.cb_emergency, 10)
-        self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', self.cb_takeoff, 10)
-        self.sub_land = self.node.create_subscription(Empty, 'land', self.cb_land, 10)
-        self.sub_cmd_vel = self.node.create_subscription(Twist, 'control', self.cb_control, 10)
-        self.sub_wifi_config = self.node.create_subscription(TelloWifiConfig, 'wifi_config', self.cb_wifi_config, 10)
+        self.sub_emergency = self.node.create_subscription(Empty, 'emergency', self.cb_emergency, 1)
+        self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', self.cb_takeoff, 1)
+        self.sub_land = self.node.create_subscription(Empty, 'land', self.cb_land, 1)
+        self.sub_control = self.node.create_subscription(Twist, 'control', self.cb_control, 1)
+        self.sub_flip = self.node.create_subscription(String, 'flip', self.cb_flip, 1)
+        self.sub_wifi_config = self.node.create_subscription(TelloWifiConfig, 'wifi_config', self.cb_wifi_config, 1)
 
     # Start drone info thread
     def start_tello_odom(self, rate=0.1):
@@ -178,6 +179,8 @@ class TelloNode():
                     msg.roll = self.tello.get_roll()
                     msg.yaw = self.tello.get_yaw()
 
+                    msg.wifi_snr = self.tello.query_wifi_signal_noise_ratio()
+
                     self.pub_status.publish(msg)
 
                 # Tello ID
@@ -241,17 +244,25 @@ class TelloNode():
     def cb_land(self, msg):
         self.tello.land()
 
-    # Callback for cmd_vel messages received use to control the drone "analogically"
+    # Control messages received use to control the drone "analogically"
     #
     # This method of controls allow for more precision in the drone control.
+    #
+    # Receives the linear and angular velocities to be applied from -100 to 100.
     def cb_control(self, msg):
         self.tello.send_rc_control(int(msg.linear.x), int(msg.linear.y), int(msg.linear.z), int(msg.angular.z))
 
-    # Callback to configure the wifi credential that should be used by the drone.
+    # Configure the wifi credential that should be used by the drone.
     #
     # The drone will be restarted after the credentials are changed.
     def cb_wifi_config(self, msg):
         self.tello.set_wifi_credentials(msg.ssid, msg.password)
+    
+    # Perform a drone flip in a direction specified.
+    # 
+    # Directions can be "r" for right, "l" for left, "f" for forward or "b" for backward.
+    def cb_flip(self, msg):
+        self.tello.flip(msg.data)
 
 def main(args=None):
     rclpy.init(args=args)
