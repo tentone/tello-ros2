@@ -47,10 +47,7 @@ class TelloControl : public rclcpp::Node
 		 */
 		int last_key = NO_KEY;
 
-		/**
-		 * Speed of the drone in manual control mode.
-		 */
-		double manual_speed = 50;
+
 
 		rclcpp::TimerBase::SharedPtr timer;
 
@@ -78,12 +75,15 @@ class TelloControl : public rclcpp::Node
 		 */
 		void manualControl(int key)
 		{
+			// Speed of the drone in manual control mode.
+			double manual_speed = 50;
+
 			geometry_msgs::msg::Twist msg = geometry_msgs::msg::Twist();
 		
-			if(key == KEY_UP) {msg.linear.x = manual_speed;}
-			if(key == KEY_DOWN) {msg.linear.x = -manual_speed;}
-			if(key == KEY_LEFT) {msg.linear.y = manual_speed;}
-			if(key == KEY_RIGHT) {msg.linear.y = -manual_speed;}
+			if(key == KEY_LEFT) {msg.linear.x = -manual_speed;}
+			if(key == KEY_RIGHT) {msg.linear.x = +manual_speed;}
+			if(key == KEY_UP) {msg.linear.y = manual_speed;}
+			if(key == KEY_DOWN) {msg.linear.y = -manual_speed;}
 			if(key == (int)('w')) {msg.linear.z = manual_speed;}
 			if(key == (int)('s')) {msg.linear.z = -manual_speed;}
 			if(key == (int)('a')) {msg.angular.z = -manual_speed;}
