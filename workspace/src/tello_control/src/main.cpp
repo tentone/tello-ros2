@@ -47,19 +47,28 @@ class TelloControl : public rclcpp::Node
 		 */
 		int last_key = NO_KEY;
 
-
-
+		/**
+		 * Timer used to control the execution speed of the node.
+		 */
 		rclcpp::TimerBase::SharedPtr timer;
 
+		/**
+		 * Publish drone control velocity.
+		 */
 		rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_velocity;
 
+		/**
+		 * Publish takeoff control.
+		 */
 		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_takeoff;
 
+		/**
+		 * Publisher for landing controls.
+		 */
 		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_land;
 
-		size_t count;
 
-		TelloControl() : Node("control"), count(0)
+		TelloControl() : Node("control")
 		{
 			publisher_land = this->create_publisher<std_msgs::msg::Empty>("land", 10);
 			publisher_takeoff = this->create_publisher<std_msgs::msg::Empty>("takeoff", 10);
