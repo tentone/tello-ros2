@@ -14,7 +14,7 @@ import time
 from djitellopy import Tello
 
 from rclpy.node import Node
-from tello_msg.msg import FlightStatus
+from tello_msg.msg import TelloStatus, TelloID, TelloWifiConfig
 from std_msgs.msg import Empty, UInt8, UInt8, Bool
 from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
 from geometry_msgs.msg import Twist, TransformStamped
@@ -68,7 +68,8 @@ class TelloNode():
     def setup_publishers(self):
         self.pub_image_raw = self.node.create_publisher(Image, 'image_raw', 10)
         self.pub_camera_info = self.node.create_publisher(CameraInfo, 'camera_info', 10)
-        self.pub_status = self.node.create_publisher(FlightStatus, 'status', 10)
+        self.pub_status = self.node.create_publisher(TelloStatus, 'status', 10)
+        self.pub_id = self.node.create_publisher(TelloID, 'id', 10)
         self.pub_imu = self.node.create_publisher(Imu, 'imu', 10)
         self.pub_battery = self.node.create_publisher(BatteryState, 'battery', 10)
         self.pub_temperature = self.node.create_publisher(Temperature, 'temperature', 10)
@@ -83,6 +84,7 @@ class TelloNode():
         self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', self.cb_takeoff, 10)
         self.sub_land = self.node.create_subscription(Empty, 'land', self.cb_land, 10)
         self.sub_cmd_vel = self.node.create_subscription(Twist, 'control', self.cb_control, 10)
+        self.sub_wifi_config = self.node.create_subscription(TelloWifiConfig, 'wifi_config', self.cb_wifi_config, 10)
 
     # Start drone info thread
     def start_tello_odom(self, rate=0.1):
@@ -97,6 +99,20 @@ class TelloNode():
                 t.transform.translation.y = 0.0
                 t.transform.translation.z = (self.tello.get_barometer()) / 100.0
                 self.tf_broadcaster.sendTransform(t)
+                
+                # Odometry
+                if self.pub_odom.get_subscription_count() > 0:
+                    odom_msg = Odometry()
+                    odom_msg.header.stamp = self.node.get_clock().now().to_msg()
+                    odom_msg.header.frame_id = self.tf_base
+                    odom_msg.pose.pose.position.x = 0.0
+                    odom_msg.pose.pose.position.y = 0.0
+                    odom_msg.pose.pose.position.z = 0.0
+                    odom_msg.twist.twist.linear.x = self.tello.get_speed_x()
+                    odom_msg.twist.twist.linear.y = self.tello.get_speed_y()
+                    odom_msg.twist.twist.linear.z = self.tello.get_speed_z()
+                    self.pub_odom.publish(odom_msg)
+                
                 time.sleep(rate)
 
         thread = threading.Thread(target=status_odom)
@@ -136,9 +152,9 @@ class TelloNode():
                     imu_msg.linear_acceleration.z = self.tello.get_acceleration_z()
                     self.pub_imu.publish(imu_msg)
 
-                # Publish flight data
+                # Tello Status
                 if self.pub_status.get_subscription_count() > 0:
-                    msg = FlightStatus()
+                    msg = TelloStatus()
                     msg.acceleration.x = self.tello.get_acceleration_x()
                     msg.acceleration.y = self.tello.get_acceleration_y()
                     msg.acceleration.z = self.tello.get_acceleration_z()
@@ -164,6 +180,14 @@ class TelloNode():
 
                     self.pub_status.publish(msg)
 
+                # Tello ID
+                if self.pub_id.get_subscription_count() > 0:
+                    msg = TelloID()
+                    msg.sdk_version = self.tello.query_sdk_version()
+                    msg.serial_number = self.tello.query_serial_number()
+                    self.pub_id.publish(msg)
+                
+                # Sleep
                 time.sleep(rate)
 
         thread = threading.Thread(target=status_loop)
@@ -223,23 +247,11 @@ class TelloNode():
     def cb_control(self, msg):
         self.tello.send_rc_control(int(msg.linear.x), int(msg.linear.y), int(msg.linear.z), int(msg.angular.z))
 
-    # # Position data
-    # position = (data.mvo.pos_x, data.mvo.pos_y, data.mvo.pos_z)
-    # quaternion = (data.imu.q0, data.imu.q1, data.imu.q2, data.imu.q3)
-    # euler = (data.imu.gyro_x, data.imu.gyro_y, data.imu.gyro_z)
-
-    # # Publish odom data
-    # odom_msg = Odometry()
-    # odom_msg.header.stamp = self.node.get_clock().now().to_msg()
-    # odom_msg.header.frame_id = self.tf_base
-    # odom_msg.pose.pose.position.x = data.mvo.pos_x
-    # odom_msg.pose.pose.position.y = data.mvo.pos_y
-    # odom_msg.pose.pose.position.z = data.mvo.pos_z
-    # odom_msg.twist.twist.linear.x = data.mvo.vel_x
-    # odom_msg.twist.twist.linear.y = data.mvo.vel_y
-    # odom_msg.twist.twist.linear.z = data.mvo.vel_z
-    # self.pub_odom.publish(odom_msg)
-
+    # Callback to configure the wifi credential that should be used by the drone.
+    #
+    # The drone will be restarted after the credentials are changed.
+    def cb_wifi_config(self, msg):
+        self.tello.set_wifi_credentials(msg.ssid, msg.password)
 
 def main(args=None):
     rclpy.init(args=args)
