@@ -17,7 +17,6 @@ find_package(rosidl_default_generators REQUIRED)
 
 # Declare ROS messages, services and actions
 set(msg_files
-  "msg/TestMsg.msg"
   "msg/FlightStatus.msg"
 )
 
