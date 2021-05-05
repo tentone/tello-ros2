@@ -87,4 +87,4 @@ apt update
 apt install gazebo11 libgazebo11-dev
 
 echo " - Install Camera Calibration"
-apt install ros-foxy-camera-calibration-parsers ros-foxy-camera-info-manager ros-foxy-launch-testing-ament-cmake
+apt install ros-foxy-camera-calibration ros-foxy-camera-calibration-parsers ros-foxy-camera-info-manager ros-foxy-launch-testing-ament-cmake

@@ -1,6 +1,6 @@
 # DJI Tello ROS2
 - [DJI Tello](https://www.ryzerobotics.com/tello) driver for ROS 2 based on [DJITelloPy](https://github.com/damiafuentes/DJITelloPy) that uses the official SDK for the drone.
-- Can be used to control multiple drones both using the swarm functionality (only for [Tello EDU](https://www.ryzerobotics.com/tello-edu)) or using multiple WLAN with regular [Tello](https://www.ryzerobotics.com/tello)
+- Can be used to control multiple drones both using the swarm functionality (only for [Tello EDU](https://www.ryzerobotics.com/tello-edu)) or using multiple WLAN with regular [Tello](https://www.ryzerobotics.com/tello) drones.
 - Project workspace is divided into sub-workspaces that contain different logic.
   - `tello` package is the main package, includes access to the drone information, camera image and  control.
   - `tello_msg` package defines custom messages to access specific tello data.
@@ -13,8 +13,6 @@
 
 - To install the driver download the code from git, install dependencies using the `script/install.sh` script.
 - After all dependencies are installed build the code and and install using `colcon` as usual.
-
-
 
 
 

@@ -94,6 +94,11 @@ class TelloNode():
     def start_tello_odom(self, rate=0.1):
         def status_odom():
             while True:
+                # Position
+                self.position[0] += self.tello.get_speed_x()
+                self.position[1] += self.tello.get_speed_y()
+                self.position[2] += self.tello.get_speed_z()
+
                 # TF
                 t = TransformStamped()
                 t.header.stamp = self.node.get_clock().now().to_msg()
