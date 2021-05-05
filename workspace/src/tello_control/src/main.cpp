@@ -67,13 +67,21 @@ class TelloControl : public rclcpp::Node
 		 */
 		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_land;
 
+		/**
+		 * Publisher for emergency stop.
+		 */
+		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_emergency;
 
+		/**
+		 * Construct a new Tello Control object
+		 */
 		TelloControl() : Node("control")
 		{
 			publisher_land = this->create_publisher<std_msgs::msg::Empty>("land", 10);
 			publisher_takeoff = this->create_publisher<std_msgs::msg::Empty>("takeoff", 10);
-			publisher_velocity = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
-			
+			publisher_velocity = this->create_publisher<geometry_msgs::msg::Twist>("control", 10);
+			publisher_emergency = this->create_publisher<std_msgs::msg::Empty>("emergency", 10);
+
 			timer = this->create_wall_timer(1ms, std::bind(&TelloControl::timer_callback, this));
 		}
 
@@ -116,14 +124,17 @@ class TelloControl : public rclcpp::Node
 				// Takeoff
 				if(key == (int)('t'))
 				{
-					std_msgs::msg::Empty empty = std_msgs::msg::Empty();
-					publisher_takeoff->publish(empty);
+					publisher_takeoff->publish(std_msgs::msg::Empty());
 				}
 				// Land
 				else if(key == (int)('l'))
 				{
-					std_msgs::msg::Empty empty = std_msgs::msg::Empty();
-					publisher_land->publish(empty);
+					publisher_land->publish(std_msgs::msg::Empty());
+				}
+				// Emergency Stop
+				else if(key == (int)('e'))
+				{
+					publisher_emergency->publish(std_msgs::msg::Empty());
 				}
 				else
 				{

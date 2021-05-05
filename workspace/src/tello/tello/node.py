@@ -82,7 +82,7 @@ class TelloNode():
         self.sub_emergency = self.node.create_subscription(Empty, 'emergency', self.cb_emergency, 10)
         self.sub_takeoff = self.node.create_subscription(Empty, 'takeoff', self.cb_takeoff, 10)
         self.sub_land = self.node.create_subscription(Empty, 'land', self.cb_land, 10)
-        self.sub_cmd_vel = self.node.create_subscription(Twist, 'cmd_vel', self.cb_cmd_vel, 10)
+        self.sub_cmd_vel = self.node.create_subscription(Twist, 'control', self.cb_control, 10)
 
     # Start drone info thread
     def start_tello_odom(self, rate=0.1):
@@ -173,6 +173,7 @@ class TelloNode():
 
     # Start video capture thread.
     def start_video_capture(self, rate=1.0/30.0):
+        # Enable tello stream
         self.tello.streamon()
 
         # OpenCV bridge
@@ -182,11 +183,10 @@ class TelloNode():
             frame_read = self.tello.get_frame_read()
 
             while True:
+                # Get frame from drone
                 frame = frame_read.frame
 
-                # cv2.imshow("picture", frame)
-                # cv2.waitKey(10)
-
+                # Publish opencv frame using CV bridge
                 msg = self.bridge.cv2_to_imgmsg(numpy.array(frame), 'bgr8')
                 msg.header.frame_id = self.tf_drone
                 self.pub_image_raw.publish(msg)
@@ -220,7 +220,7 @@ class TelloNode():
     # Callback for cmd_vel messages received use to control the drone "analogically"
     #
     # This method of controls allow for more precision in the drone control.
-    def cb_cmd_vel(self, msg):
+    def cb_control(self, msg):
         self.tello.send_rc_control(int(msg.linear.x), int(msg.linear.y), int(msg.linear.z), int(msg.angular.z))
 
     # # Position data
