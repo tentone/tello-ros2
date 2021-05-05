@@ -8,6 +8,13 @@
 
 
 
+### Install
+
+- To install the driver download the code from git, install dependencies using the script/install.sh script.
+- After all dependencies are installed build the code and and install using `colcon` as usual.
+
+
+
 ### Camera Calibration
 
 - To allow the drone to be used for 3D vision tasks, as for example monocular SLAM (e.g. [ORB-SLAM2](https://github.com/alsora/ORB_SLAM2)) the camera should be first calibrated.
