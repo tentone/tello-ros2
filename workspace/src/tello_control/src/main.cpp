@@ -63,6 +63,11 @@ class TelloControl : public rclcpp::Node
 		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_takeoff;
 
 		/**
+		 * Publisher for drone flip commands.
+		 */
+		rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_flip;
+
+		/**
 		 * Publisher for landing controls.
 		 */
 		rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_land;
@@ -131,6 +136,13 @@ class TelloControl : public rclcpp::Node
 				else if(key == (int)('l'))
 				{
 					publisher_land->publish(std_msgs::msg::Empty());
+				}
+				// Flip
+				else if(key == (int)('f'))
+				{
+					std_msgs::msg::String msg = std_msgs::msg::String();
+					msg.data = 'f';
+					publisher_flip->publish(msg);
 				}
 				// Emergency Stop
 				else if(key == (int)('e'))
