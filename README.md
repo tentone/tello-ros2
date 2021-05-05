@@ -1,11 +1,42 @@
-# Tello SLAM
-- https://github.com/damiafuentes/DJITelloPy
-- DJI Tello visual SLAM for mapping of indoor environments using ROS.
-- Project workspace is divided into sub-workspaces that contain different logic packages.
-  - gui: Contain User interface related packages
-  - driver: Access to hardware control to collect data from hardware
-  - control: Receives inputs (sensors, vision systems, etc) and defines how the drone is controlled.
-  - vision: Vision algorithms for visual information processing.
+# DJI Tello ROS2
+- [DJI Tello](https://www.ryzerobotics.com/tello) driver for ROS 2 based on [DJITelloPy](https://github.com/damiafuentes/DJITelloPy) that uses the official SDK for the drone.
+- Can be used to control multiple drones both using the swarm functionality (only for [Tello EDU](https://www.ryzerobotics.com/tello-edu)) or using multiple WLAN with regular [Tello](https://www.ryzerobotics.com/tello)
+- Project workspace is divided into sub-workspaces that contain different logic.
+  - `tello` package is the main package, includes access to the drone information, camera image and  control.
+  - `tello_msg` package defines custom messages to access specific tello data.
+  - `tello_control` package is a sample control package that displays the drone image and provides keyboard control
+
+
+
+### Camera Calibration
+
+- To allow the drone to be used for 3D vision tasks, as for example monocular SLAM (e.g. [ORB-SLAM2](https://github.com/alsora/ORB_SLAM2)) the camera should be first calibrated.
+- A sample calibration file is provided with parameters captures from the drone used for testing but it is recommended to perform individual calibrations for each drone used.
+- Calibration can be achieved using the [camera_calibration](https://navigation.ros.org/tutorials/docs/camera_calibration.html) package.
+
+```bash
+ros2 run camera_calibration cameracalibrator --size 7x9 --square 0.20 image:=/image_raw camera:=/camera_info
+```
+
+
+
+### Launch
+
+- Launch files in ROS2 are now defined using python code. To launch the main node of the project add the following code to your `launch.py` file.
+
+```python
+Node(
+    package='tello',
+    executable='tello',
+    namespace='/',
+    name='tello',
+    parameters=[
+        {'tello_ip': '192.168.10.1'}
+    ],
+    remappings=[],
+    respawn=True
+)
+```
 
 
 

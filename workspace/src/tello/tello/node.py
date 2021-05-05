@@ -53,6 +53,9 @@ class TelloNode():
 
         self.node.get_logger().info('Tello: Connected to drone')
 
+        # Position estimative based on IMU
+        self.position = [0.0, 0.0, 0.0]
+
         # Publishers and subscribers
         self.setup_publishers()
         self.setup_subscribers()
