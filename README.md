@@ -4,14 +4,17 @@
 - Project workspace is divided into sub-workspaces that contain different logic.
   - `tello` package is the main package, includes access to the drone information, camera image and  control.
   - `tello_msg` package defines custom messages to access specific tello data.
-  - `tello_control` package is a sample control package that displays the drone image and provides keyboard control
+  - `tello_control` package is a sample control package that displays the drone image and provides keyboard control.
+    - T used for takeoff, L to land the drone, F to flip forward, E for emergency stop, WASD and arrows to control the drone movement.
 
 
 
 ### Install
 
-- To install the driver download the code from git, install dependencies using the script/install.sh script.
+- To install the driver download the code from git, install dependencies using the `script/install.sh` script.
 - After all dependencies are installed build the code and and install using `colcon` as usual.
+
+
 
 
 

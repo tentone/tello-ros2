@@ -125,8 +125,6 @@ class TelloControl : public rclcpp::Node
 			
 			if (key != NO_KEY)
 			{
-				// std::cout << key << std::endl;
-
 				// Takeoff
 				if(key == (int)('t'))
 				{
