@@ -42,6 +42,14 @@ def generate_launch_description():
             namespace='/',
             name='rqt',
             respawn=True
+        ),
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            namespace='/',
+            name='tf',
+            arguments=['1', '0', '0', '0', '0', '0', '1', 'map', 'drone'],
+            respawn=True
         )
         # Node(
         #     package='camera_calibration',
@@ -56,12 +64,5 @@ def generate_launch_description():
         #         {'camera': '/camera_info'}
         #     ]
         # )
-        # Node(
-        #     package='tf2_ros',
-        #     executable='static_transform_publisher',
-        #     namespace='/',
-        #     name='tf',
-        #     arguments=['1', '0', '0', '0', '0', '0', '1', 'map', 'drone'],
-        #     respawn=True
-        # )
+
     ])

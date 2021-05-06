@@ -34,12 +34,14 @@ class TelloNode():
         self.node.declare_parameter('tello_ip', '192.168.10.1')
         self.node.declare_parameter('tf_base', 'map')
         self.node.declare_parameter('tf_drone', 'drone')
+        self.node.declare_parameter('tf_pub', False)
 
         # Get parameters
         self.connect_timeout = float(self.node.get_parameter('connect_timeout').value)
         self.tello_ip = str(self.node.get_parameter('tello_ip').value)
         self.tf_base = str(self.node.get_parameter('tf_base').value)
         self.tf_drone = str(self.node.get_parameter('tf_drone').value)
+        self.tf_pub = bool(self.node.get_parameter('tf_pub').value)
 
         # Configure drone connection
         Tello.TELLO_IP = self.tello_ip
@@ -52,9 +54,6 @@ class TelloNode():
         self.tello.connect()
 
         self.node.get_logger().info('Tello: Connected to drone')
-
-        # Position estimative based on IMU
-        self.position = [0.0, 0.0, 0.0]
 
         # Publishers and subscribers
         self.setup_publishers()
@@ -79,7 +78,8 @@ class TelloNode():
         self.pub_odom = self.node.create_publisher(Odometry, 'odom', 1)
 
         # TF broadcaster
-        self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
+        if self.tf_pub:
+            self.tf_broadcaster = tf2_ros.TransformBroadcaster(self.node)
     
     # Setup the topic subscribers of the node.
     def setup_subscribers(self):
@@ -94,20 +94,16 @@ class TelloNode():
     def start_tello_odom(self, rate=0.1):
         def status_odom():
             while True:
-                # Position
-                self.position[0] += self.tello.get_speed_x()
-                self.position[1] += self.tello.get_speed_y()
-                self.position[2] += self.tello.get_speed_z()
-
                 # TF
-                t = TransformStamped()
-                t.header.stamp = self.node.get_clock().now().to_msg()
-                t.header.frame_id = self.tf_base
-                t.child_frame_id = self.tf_drone
-                t.transform.translation.x = 0.0
-                t.transform.translation.y = 0.0
-                t.transform.translation.z = (self.tello.get_barometer()) / 100.0
-                self.tf_broadcaster.sendTransform(t)
+                if self.tf_pub:
+                    t = TransformStamped()
+                    t.header.stamp = self.node.get_clock().now().to_msg()
+                    t.header.frame_id = self.tf_base
+                    t.child_frame_id = self.tf_drone
+                    t.transform.translation.x = 0.0
+                    t.transform.translation.y = 0.0
+                    t.transform.translation.z = (self.tello.get_barometer()) / 100.0
+                    self.tf_broadcaster.sendTransform(t)
                 
                 # Odometry
                 if self.pub_odom.get_subscription_count() > 0:
@@ -134,32 +130,33 @@ class TelloNode():
             while True:
                 # Battery
                 if self.pub_battery.get_subscription_count() > 0:
-                    battery_msg = BatteryState()
-                    battery_msg.header.frame_id = self.tf_drone
-                    battery_msg.percentage = float(self.tello.get_battery())
-                    battery_msg.voltage = 3.8
-                    battery_msg.design_capacity = 1.1
-                    battery_msg.present = True
-                    battery_msg.power_supply_technology = 2 # POWER_SUPPLY_TECHNOLOGY_LION
-                    battery_msg.power_supply_status = 2 # POWER_SUPPLY_STATUS_DISCHARGING
-                    self.pub_battery.publish(battery_msg)
+                    msg = BatteryState()
+                    msg.header.frame_id = self.tf_drone
+                    msg.percentage = float(self.tello.get_battery())
+                    msg.voltage = 3.8
+                    msg.design_capacity = 1.1
+                    msg.present = True
+                    msg.power_supply_technology = 2 # POWER_SUPPLY_TECHNOLOGY_LION
+                    msg.power_supply_status = 2 # POWER_SUPPLY_STATUS_DISCHARGING
+                    self.pub_battery.publish(msg)
 
                 # Temperature
                 if self.pub_temperature.get_subscription_count() > 0:
-                    temperature_msg = Temperature()
-                    temperature_msg.header.frame_id = self.tf_drone
-                    temperature_msg.temperature = self.tello.get_temperature()
-                    self.pub_temperature.publish(temperature_msg)
+                    msg = Temperature()
+                    msg.header.frame_id = self.tf_drone
+                    msg.temperature = self.tello.get_temperature()
+                    msg.variance = 0.0
+                    self.pub_temperature.publish(msg)
 
                 # IMU
                 if self.pub_imu.get_subscription_count() > 0:
-                    imu_msg = Imu()
-                    imu_msg.header.stamp = self.node.get_clock().now().to_msg()
-                    imu_msg.header.frame_id = self.tf_drone
-                    imu_msg.linear_acceleration.x = self.tello.get_acceleration_x()
-                    imu_msg.linear_acceleration.y = self.tello.get_acceleration_y()
-                    imu_msg.linear_acceleration.z = self.tello.get_acceleration_z()
-                    self.pub_imu.publish(imu_msg)
+                    msg = Imu()
+                    msg.header.stamp = self.node.get_clock().now().to_msg()
+                    msg.header.frame_id = self.tf_drone
+                    msg.linear_acceleration.x = self.tello.get_acceleration_x()
+                    msg.linear_acceleration.y = self.tello.get_acceleration_y()
+                    msg.linear_acceleration.z = self.tello.get_acceleration_z()
+                    self.pub_imu.publish(msg)
 
                 # Tello Status
                 if self.pub_status.get_subscription_count() > 0:
