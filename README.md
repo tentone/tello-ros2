@@ -20,11 +20,13 @@
 
 - To allow the drone to be used for 3D vision tasks, as for example monocular SLAM (e.g. [ORB-SLAM2](https://github.com/alsora/ORB_SLAM2)) the camera should be first calibrated.
 - A sample calibration file is provided with parameters captures from the drone used for testing but it is recommended to perform individual calibrations for each drone used.
-- Calibration can be achieved using the [camera_calibration](https://navigation.ros.org/tutorials/docs/camera_calibration.html) package.
+- Calibration can be achieved using the [camera_calibration](https://navigation.ros.org/tutorials/docs/camera_calibration.html) package. Calibration pattern can be generated using the [calib.io pattern generator](https://calib.io/pages/camera-calibration-pattern-generator) tool.
 
 ```bash
-ros2 run camera_calibration cameracalibrator --size 7x9 --square 0.20 image:=/image_raw camera:=/camera_info
+ros2 run camera_calibration cameracalibrator --size 7x9 --square 0.16 image:=/image_raw camera:=/camera_info
 ```
+
+- Take as many frame as possible and measure your check board grid size to ensure good accuracy in the process. When the process ends a `calibrationdata.tar.gz` will be created in the `/tmp` path.
 
 
 
@@ -45,6 +47,13 @@ Node(
     respawn=True
 )
 ```
+
+
+
+### Overheating
+
+- The motor drivers in the DJI Tello overheat after a while when the drone is not flying, to cool down the drivers i have removed the plastic section on top of the heat spreader.
+- If possible place the drone on top of an old computer fan or use a laptop cooler to prevent the drone from shuting down due to overheating.
 
 
 

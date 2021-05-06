@@ -5,7 +5,7 @@ setup(
     version='0.1.0',
     packages=['tello'],
     data_files=[
-        ('share/ament_index/resource_index/packages', ['resource/tello', 'resource/calibration.ini', 'resource/calibration.txt']),
+        ('share/ament_index/resource_index/packages', ['resource/tello', 'resource/ost.txt', 'resource/ost.yaml']),
         ('share/tello', ['package.xml']),
     ],
     install_requires=['setuptools'],
