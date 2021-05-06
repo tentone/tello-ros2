@@ -19,7 +19,7 @@ int32 highest_temperature
 # Lowest temperature in celsium
 int32 lowest_temperature
 # Temperature in celsium
-int32 temperature
+float32 temperature
 
 # Pitch in degrees
 int32 pitch

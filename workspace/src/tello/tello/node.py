@@ -90,6 +90,15 @@ class TelloNode():
         self.sub_flip = self.node.create_subscription(String, 'flip', self.cb_flip, 1)
         self.sub_wifi_config = self.node.create_subscription(TelloWifiConfig, 'wifi_config', self.cb_wifi_config, 1)
 
+    # Get the orientation of the drone as a quaternion
+    def get_orientation_quaternion(self):
+        deg_to_rad = math.pi / 180.0
+        return euler_to_quaternion([
+            self.tello.get_yaw() * deg_to_rad,
+            self.tello.get_pitch() * deg_to_rad,
+            self.tello.get_roll() * deg_to_rad
+        ])
+
     # Start drone info thread
     def start_tello_odom(self, rate=0.1):
         def status_odom():
@@ -107,15 +116,18 @@ class TelloNode():
                 
                 # Odometry
                 if self.pub_odom.get_subscription_count() > 0:
+                    q = self.get_orientation_quaternion()
+
                     odom_msg = Odometry()
                     odom_msg.header.stamp = self.node.get_clock().now().to_msg()
                     odom_msg.header.frame_id = self.tf_base
-                    odom_msg.pose.pose.position.x = 0.0
-                    odom_msg.pose.pose.position.y = 0.0
-                    odom_msg.pose.pose.position.z = 0.0
-                    odom_msg.twist.twist.linear.x = self.tello.get_speed_x()
-                    odom_msg.twist.twist.linear.y = self.tello.get_speed_y()
-                    odom_msg.twist.twist.linear.z = self.tello.get_speed_z()
+                    odom_msg.pose.pose.orientation.x = q[0]
+                    odom_msg.pose.pose.orientation.y = q[1]
+                    odom_msg.pose.pose.orientation.z = q[2]
+                    odom_msg.pose.pose.orientation.w = q[3]
+                    odom_msg.twist.twist.linear.x = float(self.tello.get_speed_x()) / 100.0
+                    odom_msg.twist.twist.linear.y = float(self.tello.get_speed_y()) / 100.0
+                    odom_msg.twist.twist.linear.z = float(self.tello.get_speed_z()) / 100.0
                     self.pub_odom.publish(odom_msg)
                 
                 time.sleep(rate)
@@ -150,12 +162,18 @@ class TelloNode():
 
                 # IMU
                 if self.pub_imu.get_subscription_count() > 0:
+                    q = self.get_orientation_quaternion()
+
                     msg = Imu()
                     msg.header.stamp = self.node.get_clock().now().to_msg()
                     msg.header.frame_id = self.tf_drone
-                    msg.linear_acceleration.x = self.tello.get_acceleration_x()
-                    msg.linear_acceleration.y = self.tello.get_acceleration_y()
-                    msg.linear_acceleration.z = self.tello.get_acceleration_z()
+                    msg.linear_acceleration.x = self.tello.get_acceleration_x() / 100.0
+                    msg.linear_acceleration.y = self.tello.get_acceleration_y() / 100.0
+                    msg.linear_acceleration.z = self.tello.get_acceleration_z() / 100.0
+                    msg.orientation.x = q[0]
+                    msg.orientation.y = q[1]
+                    msg.orientation.z = q[2]
+                    msg.orientation.w = q[3]
                     self.pub_imu.publish(msg)
 
                 # Tello Status
@@ -165,11 +183,15 @@ class TelloNode():
                     msg.acceleration.y = self.tello.get_acceleration_y()
                     msg.acceleration.z = self.tello.get_acceleration_z()
 
-                    msg.speed.x = self.tello.get_speed_x()
-                    msg.speed.y = self.tello.get_speed_y()
-                    msg.speed.z = self.tello.get_speed_z()
+                    msg.speed.x = float(self.tello.get_speed_x())
+                    msg.speed.y = float(self.tello.get_speed_y())
+                    msg.speed.z = float(self.tello.get_speed_z())
 
-                    msg.barometer = self.tello.get_barometer()
+                    msg.pitch = self.tello.get_pitch()
+                    msg.roll = self.tello.get_roll()
+                    msg.yaw = self.tello.get_yaw()
+
+                    msg.barometer = int(self.tello.get_barometer())
                     msg.distance_tof = self.tello.get_distance_tof()
 
                     msg.fligth_time = self.tello.get_flight_time()
@@ -179,10 +201,6 @@ class TelloNode():
                     msg.highest_temperature = self.tello.get_highest_temperature()
                     msg.lowest_temperature = self.tello.get_lowest_temperature()
                     msg.temperature = self.tello.get_temperature()
-
-                    msg.pitch = self.tello.get_pitch()
-                    msg.roll = self.tello.get_roll()
-                    msg.yaw = self.tello.get_yaw()
 
                     msg.wifi_snr = self.tello.query_wifi_signal_noise_ratio()
 
@@ -268,6 +286,30 @@ class TelloNode():
     # Directions can be "r" for right, "l" for left, "f" for forward or "b" for backward.
     def cb_flip(self, msg):
         self.tello.flip(msg.data)
+
+# Convert a rotation from euler to quaternion.
+def euler_to_quaternion(r):
+    (yaw, pitch, roll) = (r[0], r[1], r[2])
+    qx = math.sin(roll/2) * math.cos(pitch/2) * math.cos(yaw/2) - math.cos(roll/2) * math.sin(pitch/2) * math.sin(yaw/2)
+    qy = math.cos(roll/2) * math.sin(pitch/2) * math.cos(yaw/2) + math.sin(roll/2) * math.cos(pitch/2) * math.sin(yaw/2)
+    qz = math.cos(roll/2) * math.cos(pitch/2) * math.sin(yaw/2) - math.sin(roll/2) * math.sin(pitch/2) * math.cos(yaw/2)
+    qw = math.cos(roll/2) * math.cos(pitch/2) * math.cos(yaw/2) + math.sin(roll/2) * math.sin(pitch/2) * math.sin(yaw/2)
+    return [qx, qy, qz, qw]
+
+# Convert rotation from quaternion to euler.
+def quaternion_to_euler(q):
+    (x, y, z, w) = (q[0], q[1], q[2], q[3])
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    roll = math.atan2(t0, t1)
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    pitch = math.asin(t2)
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw = math.atan2(t3, t4)
+    return [yaw, pitch, roll]
 
 def main(args=None):
     rclpy.init(args=args)
