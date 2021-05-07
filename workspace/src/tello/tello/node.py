@@ -10,6 +10,7 @@ import av
 import tf2_ros
 import cv2
 import time
+import yaml
 
 from djitellopy import Tello
 
@@ -35,6 +36,7 @@ class TelloNode():
         self.node.declare_parameter('tf_base', 'map')
         self.node.declare_parameter('tf_drone', 'drone')
         self.node.declare_parameter('tf_pub', False)
+        self.node.declare_parameter('camera_info', './resource/ost.yaml')
 
         # Get parameters
         self.connect_timeout = float(self.node.get_parameter('connect_timeout').value)
@@ -42,6 +44,11 @@ class TelloNode():
         self.tf_base = str(self.node.get_parameter('tf_base').value)
         self.tf_drone = str(self.node.get_parameter('tf_drone').value)
         self.tf_pub = bool(self.node.get_parameter('tf_pub').value)
+        self.camera_info = str(self.node.get_parameter('camera_info').value)
+
+        with open(self.camera_info, 'r') as file:
+            camera_info = yaml.load(file, Loader=yaml.FullLoader)
+            print(camera_info)
 
         # Configure drone connection
         Tello.TELLO_IP = self.tello_ip
