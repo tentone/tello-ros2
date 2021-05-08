@@ -117,7 +117,7 @@ class TelloNode():
         ])
 
     # Start drone info thread
-    def start_tello_odom(self, rate=0.1):
+    def start_tello_odom(self, rate=1.0/10.0):
         def status_odom():
             while True:
                 # TF
@@ -154,7 +154,7 @@ class TelloNode():
         return thread
 
     # Start drone info thread
-    def start_tello_status(self, rate=0.5):
+    def start_tello_status(self, rate=1.0/2.0):
         def status_loop():
             while True:
                 # Battery
@@ -229,6 +229,18 @@ class TelloNode():
                     msg.sdk_version = self.tello.query_sdk_version()
                     msg.serial_number = self.tello.query_serial_number()
                     self.pub_id.publish(msg)
+
+                # Camera info
+                if self.pub_camera_info.get_subscription_count() > 0:
+                    msg = CameraInfo()
+                    msg.height = self.camera_info.image_height
+                    msg.width = self.camera_info.image_width
+                    msg.distortion_model = self.camera_info.distortion_model
+                    msg.D = self.camera_info.distortion_coefficients
+                    msg.K = self.camera_info.camera_matrix
+                    msg.R = self.camera_info.rectification_matrix
+                    msg.P = self.camera_info.projection_matrix
+                    self.pub_camera_info.publish(msg)
                 
                 # Sleep
                 time.sleep(rate)
