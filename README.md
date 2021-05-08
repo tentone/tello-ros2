@@ -1,24 +1,32 @@
 # DJI Tello ROS2
 - [DJI Tello](https://www.ryzerobotics.com/tello) driver for ROS 2 based on [DJITelloPy](https://github.com/damiafuentes/DJITelloPy) that uses the official SDK for the drone.
 - Can be used to control multiple drones both using the swarm functionality (only for [Tello EDU](https://www.ryzerobotics.com/tello-edu)) or using multiple WLAN with regular [Tello](https://www.ryzerobotics.com/tello) drones.
+- This project was developed as a way of learning ROS 2 and evaluate the viability of moving other in progress projects from ROS 1 to ROS 2.
+- Ii is recommended to update the Tello firmware to the latest version available 
 - Project workspace is divided into sub-workspaces that contain different logic.
   - `tello` package is the main package, includes access to the drone information, camera image and  control.
-  - `tello_msg` package defines custom messages to access specific tello data.
+  - `tello_msg` package defines custom messages to access specific Tello data.
+    - Defines the `TelloStatus`, `TelloID` and `TelloWifiConfig` messages 
   - `tello_control` package is a sample control package that displays the drone image and provides keyboard control.
     - T used for takeoff, L to land the drone, F to flip forward, E for emergency stop, WASD and arrows to control the drone movement.
 
 
 
-### Install
+### Topics
 
-- To install the driver download the code from git, install dependencies using the `script/install.sh` script.
-- After all dependencies are installed build the code and and install using `colcon` as usual.
+TODO
+
+
+
+### Parameters
+
+TODO
 
 
 
 ### Camera Calibration
 
-- To allow the drone to be used for 3D vision tasks, as for example monocular SLAM (e.g. [ORB-SLAM2](https://github.com/alsora/ORB_SLAM2)) the camera should be first calibrated.
+- To allow the drone to be used for 3D vision tasks, as for example monocular SLAM (e.g. [ORB-SLAM2](https://github.com/alsora/ros2-ORB_SLAM2)) the camera should be first calibrated.
 - A sample calibration file is provided with parameters captures from the drone used for testing but it is recommended to perform individual calibrations for each drone used.
 - Calibration can be achieved using the [camera_calibration](https://navigation.ros.org/tutorials/docs/camera_calibration.html) package. Calibration pattern can be generated using the [calib.io pattern generator](https://calib.io/pages/camera-calibration-pattern-generator) tool.
 
@@ -28,9 +36,16 @@ ros2 run camera_calibration cameracalibrator --size 7x9 --square 0.16 image:=/im
 
 - Take as many frame as possible and measure your check board grid size to ensure good accuracy in the process. When the process ends a `calibrationdata.tar.gz` will be created in the `/tmp` path.
 
+<img src="readme/calibration.jpg" width="380">
+
+### Visual SLAM
+
+- The drone is equipped with a IMU and a camera that can be used for visual SLAM in order to obtain the location of the drone and a map of the environment.
+- 
 
 
-### Launch
+
+### Launch File
 
 - Launch files in ROS2 are now defined using python code. To launch the main node of the project add the following code to your `launch.py` file.
 
@@ -50,14 +65,24 @@ Node(
 
 
 
-### Overheating
+### Overheating Problems
 
 - The motor drivers in the DJI Tello overheat after a while when the drone is not flying, to cool down the drivers i have removed the plastic section on top of the heat spreader.
-- If possible place the drone on top of an old computer fan or use a laptop cooler to prevent the drone from shuting down due to overheating.
+- If you are comfortable with leaving the PCB exposed removing the plastic cover should result in even better thermals.
+- If possible place the drone on top of an old computer fan or use a laptop cooler to prevent the drone from shutting down due to overheating.
+
+<img src="readme/drone_a.jpg" width="380"><img src="readme/drone_b.jpg" width="380">
 
 
 
-### ROS 2 Foxy
+### Install
+
+- To install the driver download the code from git, install dependencies using the `script/install.sh` script.
+- After all dependencies are installed build the code and and install using `colcon` as usual.
+
+
+
+### Setup ROS 2 Foxy
 
 - Run the install script to setup the ROS 2 (Foxy Fitzroy) environment. 
 - Check the [ROS2 Tutorials](https://index.ros.org/doc/ros2/Tutorials/) page to learn how to setup workspace and create packages.
@@ -117,7 +142,7 @@ ros2 bag play -s rosbag_v2 <path_to_bagfile>
 
 
 
-### Linux 
+### Ubuntu Based Linux Distros
 
 - When installing on ubuntu based distros it might be required to change the distro codename so that the `lsb_release -cs` command returns the correct ubuntu base distribution.
 - To change the output of the `lsb_release` command edit the `/etc/os-release` file. For ubuntu 20.04 the codename should be `focal`.
