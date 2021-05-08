@@ -21,6 +21,7 @@ from sensor_msgs.msg import Image, Imu, BatteryState, Temperature, CameraInfo
 from geometry_msgs.msg import Twist, TransformStamped
 from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
+import ament_index_python
 
 # Tello ROS node class, inherits from the Tello controller object.
 #
@@ -36,7 +37,7 @@ class TelloNode():
         self.node.declare_parameter('tf_base', 'map')
         self.node.declare_parameter('tf_drone', 'drone')
         self.node.declare_parameter('tf_pub', False)
-        self.node.declare_parameter('camera_info', './resource/ost.yaml')
+        self.node.declare_parameter('camera_info_file', '')
 
         # Get parameters
         self.connect_timeout = float(self.node.get_parameter('connect_timeout').value)
@@ -44,11 +45,20 @@ class TelloNode():
         self.tf_base = str(self.node.get_parameter('tf_base').value)
         self.tf_drone = str(self.node.get_parameter('tf_drone').value)
         self.tf_pub = bool(self.node.get_parameter('tf_pub').value)
-        self.camera_info = str(self.node.get_parameter('camera_info').value)
+        self.camera_info_file = str(self.node.get_parameter('camera_info_file').value)
 
-        with open(self.camera_info, 'r') as file:
-            camera_info = yaml.load(file, Loader=yaml.FullLoader)
-            print(camera_info)
+        # Camera information loaded from calibration yaml
+        self.camera_info = None
+        
+        # Check if camera info file was received as argument
+        if len(self.camera_info_file) == 0:
+            share_directory = ament_index_python.get_package_share_directory('tello')
+            self.camera_info_file = share_directory + '/ost.yaml'
+
+        # Read camera info from YAML file
+        with open(self.camera_info_file, 'r') as file:
+            self.camera_info = yaml.load(file, Loader=yaml.FullLoader)
+            self.node.get_logger().info('Tello: Camera information YAML' + self.camera_info.__str__())
 
         # Configure drone connection
         Tello.TELLO_IP = self.tello_ip
