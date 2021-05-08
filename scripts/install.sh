@@ -70,28 +70,11 @@ make install -j4
 
 # Install project dependencies
 echo " - Python dependencies"
-pip3 install catkin_pkg rospkg av image opencv-python
+pip3 install catkin_pkg rospkg av image opencv-python djitellopy2 pyyaml
 apt install python3-tf*
-pip3 install djitellopy2
 
 echo " - CPP dependencies"
 apt install ros-foxy-ament-cmake* ros-foxy-tf2* ros-foxy-rclcpp* ros-foxy-rosgraph*
 
-echo " - Tools"
-sudo apt install ros-foxy-rviz* ros-foxy-rqt*
-
-echo " - Install Gazebo"
-sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list'
-wget https://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
-apt update
-apt install gazebo11 libgazebo11-dev
-
-echo " - Install Camera Calibration"
-apt install ros-foxy-camera-calibration ros-foxy-camera-calibration-parsers ros-foxy-camera-info-manager ros-foxy-launch-testing-ament-cmake
-
-echo " - Install Python YAML"
-pip3 install pyyaml
-
-echo " - Install ORB SLAM 2"
-cd ../workspace/src
-git clone https://github.com/alsora/ros2-ORB_SLAM2
+echo " - Rviz and RQT Tools"
+apt install ros-foxy-rviz* ros-foxy-rqt*

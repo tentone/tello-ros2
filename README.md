@@ -1,5 +1,5 @@
 # DJI Tello ROS2
-- [DJI Tello](https://www.ryzerobotics.com/tello) driver for ROS 2 based on [DJITelloPy](https://github.com/damiafuentes/DJITelloPy) that uses the official SDK for the drone.
+- [DJI Tello](https://www.ryzerobotics.com/tello) driver for ROS 2 based on [DJITelloPy](https://github.com/damiafuentes/DJITelloPy) that uses the [official SDK](https://github.com/dji-sdk/Tello-Python) for the drone.
 - Can be used to control multiple drones both using the swarm functionality (only for [Tello EDU](https://www.ryzerobotics.com/tello-edu)) or using multiple WLAN with regular [Tello](https://www.ryzerobotics.com/tello) drones.
 - This project was developed as a way of learning ROS 2 and evaluate the viability of moving other in progress projects from ROS 1 to ROS 2.
 - Ii is recommended to update the Tello firmware to the latest version available 
@@ -41,7 +41,7 @@ ros2 run camera_calibration cameracalibrator --size 7x9 --square 0.16 image:=/im
 ### Visual SLAM
 
 - The drone is equipped with a IMU and a camera that can be used for visual SLAM in order to obtain the location of the drone and a map of the environment.
-- 
+- ORB2 is a visual only based algorithm for SLAM that can be easily integrated with the Tello drone using this package.
 
 
 
