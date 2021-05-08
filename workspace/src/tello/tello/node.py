@@ -58,7 +58,7 @@ class TelloNode():
         # Read camera info from YAML file
         with open(self.camera_info_file, 'r') as file:
             self.camera_info = yaml.load(file, Loader=yaml.FullLoader)
-            self.node.get_logger().info('Tello: Camera information YAML' + self.camera_info.__str__())
+            # self.node.get_logger().info('Tello: Camera information YAML' + self.camera_info.__str__())
 
         # Configure drone connection
         Tello.TELLO_IP = self.tello_ip
