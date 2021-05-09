@@ -15,3 +15,7 @@ workspace/src/install/
 opencv/
 
 .vscode/.ropeproject/
+
+libs/
+
+workspace/src/ros2-ORB_SLAM2/
