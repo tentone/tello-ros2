@@ -30,6 +30,3 @@ chmod +x build.sh
 echo " - Download ORB SLAM 2 ROS node"
 cd workspace/src
 git clone https://github.com/alsora/ros2-ORB_SLAM2
-
-
-# ros2 run orbslam mono ~/ORB_SLAM2/Vocabulary/ORBvoc.txt ~/ORB_SLAM2/ros2-ORB_SLAM2/src/monocular/TUM1.yaml
