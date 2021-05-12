@@ -17,6 +17,9 @@ def generate_launch_description():
                 {'tf_base': 'map'},
                 {'tf_drone': 'drone'}
             ],
+            remappings=[
+                ('/image_raw', '/camera')
+            ],
             respawn=True
         ),
 
@@ -62,18 +65,18 @@ def generate_launch_description():
         ),
 
         # ORB SLAM
-        Node(
-            package='orbslam2',
-            executable='mono',
-            output='screen',
-            namespace='/',
-            name='orbslam',
-            respawn=True,
-            remappings=[
-                ('/camera', '/image_raw')
-            ],
-            arguments=['/home/tentone/Git/tello-slam/libs/ORB_SLAM2/Vocabulary/ORBVoc.txt', '0']
-        ),
+        # Node(
+        #     package='orbslam2',
+        #     executable='mono',
+        #     output='screen',
+        #     namespace='/',
+        #     name='orbslam',
+        #     respawn=True,
+        #     remappings=[
+        #         ('/camera', '/image_raw')
+        #     ],
+        #     arguments=['/home/tentone/Git/tello-slam/libs/ORB_SLAM2/Vocabulary/ORBVoc.txt', '/home/tentone/Git/tello-slam/workspace/src/orbslam2/config.yaml']
+        # ),
 
         # Camera calibration node
         # Node(

@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(orbslam2)
 
+# Cmake modules folder
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/")
 
 # Default to C++14
@@ -21,11 +22,15 @@ find_package(Pangolin REQUIRED)
 find_package(ORB_SLAM2 REQUIRED)
 
 # Monocular
-add_executable(mono 
-  src/monocular/mono.cpp
-  src/monocular/monocular-slam-node.cpp
+add_executable(mono src/monocular/mono.cpp)
+ament_target_dependencies(
+  mono
+  rclcpp
+  sensor_msgs
+  cv_bridge
+  ORB_SLAM2
+  Pangolin
 )
-ament_target_dependencies(mono rclcpp sensor_msgs cv_bridge ORB_SLAM2 Pangolin)
 
 install(TARGETS mono DESTINATION lib/${PROJECT_NAME})
 ament_package()

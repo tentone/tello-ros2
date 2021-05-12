@@ -88,7 +88,7 @@ class TelloControl : public rclcpp::Node
 			publisher_velocity = this->create_publisher<geometry_msgs::msg::Twist>("control", 1);
 			publisher_emergency = this->create_publisher<std_msgs::msg::Empty>("emergency", 1);
 
-			timer = this->create_wall_timer(1ms, std::bind(&TelloControl::timer_callback, this));
+			timer = this->create_wall_timer(1ms, std::bind(&TelloControl::timerCallback, this));
 		}
 
 		/**
@@ -115,7 +115,7 @@ class TelloControl : public rclcpp::Node
 			publisher_velocity->publish(msg);
 		}
 
-		void timer_callback()
+		void timerCallback()
 		{
 			cv::Mat image = cv::Mat::zeros(100, 100, CV_8UC3);
 			cv::namedWindow("Tello", cv::WINDOW_AUTOSIZE);
