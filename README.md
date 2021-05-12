@@ -80,7 +80,9 @@ Node(
     parameters=[
         {'tello_ip': '192.168.10.1'}
     ],
-    remappings=[],
+    remappings=[
+        ('/image_raw', 'camera')
+    ],
     respawn=True
 )
 ```
@@ -89,7 +91,7 @@ Node(
 
 ### Overheating Problems
 
-- The motor drivers in the DJI Tello overheat after a while when the drone is not flying, to cool down the drivers i have removed the plastic section on top of the heat spreader.
+- The motor drivers in the DJI Tello overheat after a while when the drone is not flying. To cool down the drivers i have removed the plastic section on top of the heat spreader (as seen in the picture).
 - If you are comfortable with leaving the PCB exposed removing the plastic cover should result in even better thermals.
 - If possible place the drone on top of an old computer fan or use a laptop cooler to prevent the drone from shutting down due to overheating.
 
@@ -100,7 +102,15 @@ Node(
 ### Visual SLAM
 
 - The drone is equipped with a IMU and a camera that can be used for visual SLAM in order to obtain the location of the drone and a map of the environment.
-- ORB2 is a monocular visual based algorithm for SLAM that can be easily integrated with the Tello drone using this package and [ORB-SLAM2](https://github.com/alsora/ros2-ORB_SLAM2) wrapper for ROS2.
+- [ORB SLAM 2](https://github.com/raulmur/ORB_SLAM2) is a monocular visual based algorithm for SLAM that can be easily integrated with the Tello drone using this package.
+- The wrapper provided alongside with this repository is based on the [ORB-SLAM2](https://github.com/alsora/ros2-ORB_SLAM2) project. To run the monocular SLAM node
+
+```bash
+ros2 run ros2_orbslam mono <VOCABULARY FILE> <CONFIG_FILE>
+```
+
+- The vocabulary file can be obtained from the ORB_SLAM2 repository ( `ORB_SLAM2/Vocabulary/ORBvoc.txt`).
+- Sample configuration files can be found inside the package at `orbslam2/src/monocular/config.yaml` for monocular SLAM.
 
 
 

@@ -17,17 +17,19 @@ def generate_launch_description():
                 {'tf_base': 'map'},
                 {'tf_drone': 'drone'}
             ],
-            remappings=[],
-            respawn=False
+            respawn=True
         ),
+        
         # Tello control node
         Node(
             package='tello_control',
             executable='tello_control',
             namespace='/',
             name='control',
-            output='screen'
+            output='screen',
+            respawn=False
         ),
+
         # RQT topic debug tool
         Node(
             package='rqt_gui',
@@ -35,8 +37,9 @@ def generate_launch_description():
             output='screen',
             namespace='/',
             name='rqt',
-            respawn=True
+            respawn=False
         ),
+
         # RViz data visualization tool
         Node(
             package='rviz2',
@@ -56,16 +59,21 @@ def generate_launch_description():
             name='tf',
             arguments=['0', '0', '0', '0', '0', '0', '1', 'map', 'drone'],
             respawn=True
-        )
-        # ORB SLAM
-        Node(
-            package='ros2_orbslam',
-            executable='mono',
-            output='screen',
-            namespace='/',
-            name='rqt',
-            respawn=True
         ),
+
+        # ORB SLAM
+        # Node(
+        #     package='ros2_orbslam',
+        #     executable='mono',
+        #     output='screen',
+        #     namespace='/',
+        #     name='orbslam',
+        #     respawn=True,
+        #     remappings=[
+        #         ('/camera', '/image_raw')
+        #     ]
+        # ),
+
         # Camera calibration node
         # Node(
         #     package='camera_calibration',

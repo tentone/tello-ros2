@@ -5,7 +5,6 @@ workspace/src/__pycache__/
 workspace/src/build/
 workspace/src/lib/
 workspace/src/install/
-workspace/src/ros2-ORB_SLAM2/
 
 .vscode/.ropeproject/
 
@@ -15,3 +14,36 @@ libs/
 
 *.pyc
 *.bag
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
