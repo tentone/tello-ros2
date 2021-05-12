@@ -20,13 +20,10 @@ mkdir build
 cd build
 cmake ..
 make install
+cd ../../libs
 
 echo " - Download ORB SLAM 2"
-git clone https://github.com/alsora/ORB_SLAM2
-cd ORB_SLAM2
-chmod +x build.sh
-./build.sh
 
-echo " - Download ORB SLAM 2 ROS node"
-cd workspace/src
-git clone https://github.com/alsora/ros2-ORB_SLAM2
+mkdir -p ../workspace/src/libs
+cd ../workspace/src/libs
+git clone https://github.com/alsora/ORB_SLAM2
