@@ -27,19 +27,5 @@ add_executable(mono
 )
 ament_target_dependencies(mono rclcpp sensor_msgs cv_bridge ORB_SLAM2 Pangolin)
 
-# RGBD
-add_executable(rgbd 
-  src/rgbd/rgbd.cpp
-  src/rgbd/rgbd-slam-node.cpp
-)
-ament_target_dependencies(rgbd rclcpp sensor_msgs cv_bridge message_filters ORB_SLAM2 Pangolin)
-
-# Stereo
-add_executable(stereo 
-  src/stereo/stereo.cpp
-  src/stereo/stereo-slam-node.cpp
-)
-ament_target_dependencies(stereo rclcpp sensor_msgs cv_bridge message_filters ORB_SLAM2 Pangolin)
-
-install(TARGETS mono rgbd stereo DESTINATION lib/${PROJECT_NAME})
+install(TARGETS mono DESTINATION lib/${PROJECT_NAME})
 ament_package()

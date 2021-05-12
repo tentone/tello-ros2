@@ -19,7 +19,7 @@ def generate_launch_description():
             ],
             respawn=True
         ),
-        
+
         # Tello control node
         Node(
             package='tello_control',
@@ -62,17 +62,18 @@ def generate_launch_description():
         ),
 
         # ORB SLAM
-        # Node(
-        #     package='ros2_orbslam',
-        #     executable='mono',
-        #     output='screen',
-        #     namespace='/',
-        #     name='orbslam',
-        #     respawn=True,
-        #     remappings=[
-        #         ('/camera', '/image_raw')
-        #     ]
-        # ),
+        Node(
+            package='orbslam2',
+            executable='mono',
+            output='screen',
+            namespace='/',
+            name='orbslam',
+            respawn=True,
+            remappings=[
+                ('/camera', '/image_raw')
+            ],
+            arguments=['/home/tentone/Git/tello-slam/libs/ORB_SLAM2/Vocabulary/ORBVoc.txt', '0']
+        ),
 
         # Camera calibration node
         # Node(
