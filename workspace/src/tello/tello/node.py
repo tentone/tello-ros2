@@ -131,6 +131,22 @@ class TelloNode():
                     t.transform.translation.z = (self.tello.get_barometer()) / 100.0
                     self.tf_broadcaster.sendTransform(t)
                 
+                # IMU
+                if self.pub_imu.get_subscription_count() > 0:
+                    q = self.get_orientation_quaternion()
+
+                    msg = Imu()
+                    msg.header.stamp = self.node.get_clock().now().to_msg()
+                    msg.header.frame_id = self.tf_drone
+                    msg.linear_acceleration.x = self.tello.get_acceleration_x() / 100.0
+                    msg.linear_acceleration.y = self.tello.get_acceleration_y() / 100.0
+                    msg.linear_acceleration.z = self.tello.get_acceleration_z() / 100.0
+                    msg.orientation.x = q[0]
+                    msg.orientation.y = q[1]
+                    msg.orientation.z = q[2]
+                    msg.orientation.w = q[3]
+                    self.pub_imu.publish(msg)
+
                 # Odometry
                 if self.pub_odom.get_subscription_count() > 0:
                     q = self.get_orientation_quaternion()
@@ -176,22 +192,6 @@ class TelloNode():
                     msg.temperature = self.tello.get_temperature()
                     msg.variance = 0.0
                     self.pub_temperature.publish(msg)
-
-                # IMU
-                if self.pub_imu.get_subscription_count() > 0:
-                    q = self.get_orientation_quaternion()
-
-                    msg = Imu()
-                    msg.header.stamp = self.node.get_clock().now().to_msg()
-                    msg.header.frame_id = self.tf_drone
-                    msg.linear_acceleration.x = self.tello.get_acceleration_x() / 100.0
-                    msg.linear_acceleration.y = self.tello.get_acceleration_y() / 100.0
-                    msg.linear_acceleration.z = self.tello.get_acceleration_z() / 100.0
-                    msg.orientation.x = q[0]
-                    msg.orientation.y = q[1]
-                    msg.orientation.z = q[2]
-                    msg.orientation.w = q[3]
-                    self.pub_imu.publish(msg)
 
                 # Tello Status
                 if self.pub_status.get_subscription_count() > 0:

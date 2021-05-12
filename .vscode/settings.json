@@ -76,7 +76,9 @@
 		"hash_set": "cpp",
 		"unordered_set": "cpp",
 		"shared_mutex": "cpp",
-		"valarray": "cpp"
+		"valarray": "cpp",
+		"core": "cpp",
+		"specialfunctions": "cpp"
 	},
 	"cmake.configureOnOpen": true
 }
