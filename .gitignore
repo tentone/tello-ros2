@@ -1,21 +1,17 @@
 
-log/
-
 workspace/install/
-*.pyc
-*.bag
-
 workspace/build/
-
 workspace/src/__pycache__/
 workspace/src/build/
 workspace/src/lib/
 workspace/src/install/
-
-opencv/
+workspace/src/ros2-ORB_SLAM2/
 
 .vscode/.ropeproject/
 
+log/
 libs/
 
-workspace/src/ros2-ORB_SLAM2/
+
+*.pyc
+*.bag

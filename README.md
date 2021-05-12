@@ -10,7 +10,7 @@
   - `tello_control` package is a sample control package that displays the drone image and provides keyboard control.
     - T used for takeoff, L to land the drone, F to flip forward, E for emergency stop, WASD and arrows to control the drone movement.
 
-### Topics
+<img src="readme/ros.jpg" width="380"><img src="readme/drone_b.jpg" width="380">
 
 - Bellow is the list of topics published and consumed by the `tello` package
 - The list of published topics alongside their description and frequency. These topics are only published when some node subscribed to them, otherwise they are not processed.
@@ -53,7 +53,7 @@
 
 ### Camera Calibration
 
-- To allow the drone to be used for 3D vision tasks, as for example monocular SLAM (e.g. [ORB-SLAM2](https://github.com/alsora/ros2-ORB_SLAM2)) the camera should be first calibrated.
+- To allow the drone to be used for 3D vision tasks, as for example monocular SLAM the camera should be first calibrated.
 - A sample calibration file is provided with parameters captures from the drone used for testing but it is recommended to perform individual calibrations for each drone used.
 - Calibration can be achieved using the [camera_calibration](https://navigation.ros.org/tutorials/docs/camera_calibration.html) package. Calibration pattern can be generated using the [calib.io pattern generator](https://calib.io/pages/camera-calibration-pattern-generator) tool.
 
@@ -64,13 +64,6 @@ ros2 run camera_calibration cameracalibrator --size 7x9 --square 0.16 image:=/im
 - Take as many frame as possible and measure your check board grid size to ensure good accuracy in the process. When the process ends a `calibrationdata.tar.gz` will be created in the `/tmp` path.
 
 <img src="readme/calibration.jpg" width="380">
-
-
-
-### Visual SLAM
-
-- The drone is equipped with a IMU and a camera that can be used for visual SLAM in order to obtain the location of the drone and a map of the environment.
-- ORB2 is a visual only based algorithm for SLAM that can be easily integrated with the Tello drone using this package.
 
 
 
@@ -100,7 +93,14 @@ Node(
 - If you are comfortable with leaving the PCB exposed removing the plastic cover should result in even better thermals.
 - If possible place the drone on top of an old computer fan or use a laptop cooler to prevent the drone from shutting down due to overheating.
 
-<img src="readme/drone_a.jpg" width="380"><img src="readme/drone_b.jpg" width="380">
+<img src="readme/drone_a.jpg" width="380">
+
+
+
+### Visual SLAM
+
+- The drone is equipped with a IMU and a camera that can be used for visual SLAM in order to obtain the location of the drone and a map of the environment.
+- ORB2 is a monocular visual based algorithm for SLAM that can be easily integrated with the Tello drone using this package and [ORB-SLAM2](https://github.com/alsora/ros2-ORB_SLAM2) wrapper for ROS2.
 
 
 

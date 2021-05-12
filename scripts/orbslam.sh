@@ -37,9 +37,10 @@ cd ORB_SLAM2
 chmod +x build.sh
 ./build.sh
 
+echo "export ORB_SLAM2_ROOT_DIR=$(pwd)" >> ~/.bashrc
+
 echo " - Download ORB SLAM 2 Wrapper"
 mkdir -p ../workspace/src/libs
 cd ../workspace/src/libs
-# git clone https://github.com/alsora/ORB_SLAM2
 git clone https://github.com/alsora/ros2-ORB_SLAM2
 

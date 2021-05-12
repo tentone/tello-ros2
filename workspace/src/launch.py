@@ -4,13 +4,7 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     nodes = [
-        Node(
-            package='tello_control',
-            executable='tello_control',
-            namespace='/',
-            name='control',
-            output='screen'
-        ),
+        # Tello driver node
         Node(
             package='tello',
             executable='tello',
@@ -26,6 +20,24 @@ def generate_launch_description():
             remappings=[],
             respawn=False
         ),
+        # Tello control node
+        Node(
+            package='tello_control',
+            executable='tello_control',
+            namespace='/',
+            name='control',
+            output='screen'
+        ),
+        # RQT topic debug tool
+        Node(
+            package='rqt_gui',
+            executable='rqt_gui',
+            output='screen',
+            namespace='/',
+            name='rqt',
+            respawn=True
+        ),
+        # RViz data visualization tool
         Node(
             package='rviz2',
             executable='rviz2',
@@ -35,22 +47,26 @@ def generate_launch_description():
             respawn=True,
             arguments=['-d', '/home/tentone/Git/tello-slam/workspace/src/rviz.rviz']
         ),
-        Node(
-            package='rqt_gui',
-            executable='rqt_gui',
-            output='screen',
-            namespace='/',
-            name='rqt',
-            respawn=True
-        ),
+
+        # Static TF publisher
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
             namespace='/',
             name='tf',
-            arguments=['1', '0', '0', '0', '0', '0', '1', 'map', 'drone'],
+            arguments=['0', '0', '0', '0', '0', '0', '1', 'map', 'drone'],
             respawn=True
         )
+        # ORB SLAM
+        Node(
+            package='ros2_orbslam',
+            executable='mono',
+            output='screen',
+            namespace='/',
+            name='rqt',
+            respawn=True
+        ),
+        # Camera calibration node
         # Node(
         #     package='camera_calibration',
         #     executable='cameracalibrator',
