@@ -16,21 +16,37 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(message_filters REQUIRED)
-find_package(Pangolin REQUIRED)
+
+find_package(Boost COMPONENTS system) 
+find_package(OpenCV 3 REQUIRED)
+find_package(Eigen REQUIRED)
 find_package(ORB_SLAM2 REQUIRED)
 
-# Monocular
-add_executable(mono src/monocular/mono.cpp)
-ament_target_dependencies(
-  mono
-  rclcpp
-  sensor_msgs
-  cv_bridge
-  ORB_SLAM2
-  Pangolin
+include_directories(
+  ${ORB_SLAM2_INCLUDE_DIRS}
+  ${message_filters_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+  ${EIGEN_INCLUDE_DIR}
 )
+
+# Monocular
+add_executable(
+    mono 
+    src/monocular/mono.cpp
+    src/monocular/monocular-slam-node.cpp
+)
+
+target_link_libraries(mono
+  g2o
+  DBoW2
+  ${ORB_SLAM2_LIBRARIES}
+  ${Boost_LIBRARIES}
+)
+
+ament_target_dependencies(mono rclcpp sensor_msgs visualization_msgs cv_bridge ORB_SLAM2 Boost)
 
 install(TARGETS mono DESTINATION lib/${PROJECT_NAME})
 ament_package()
