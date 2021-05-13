@@ -97,13 +97,19 @@ Node(
 
 <img src="readme/drone_a.jpg" width="380">
 
+### Install
+
+- To install the driver download the code from git, install dependencies using the `script/install.sh` script.
+- After all dependencies are installed build the code and and install using `colcon` as usual or use the `script/build.sh` and `script/run.sh` to test the code.
+
 
 
 ### Visual SLAM
 
 - The drone is equipped with a IMU and a camera that can be used for visual SLAM in order to obtain the location of the drone and a map of the environment.
 - [ORB SLAM 2](https://github.com/raulmur/ORB_SLAM2) is a monocular visual based algorithm for SLAM that can be easily integrated with the Tello drone using this package.
-- The wrapper provided alongside with this repository is based on the [ORB-SLAM2](https://github.com/alsora/ros2-ORB_SLAM2) project. To run the monocular SLAM node
+- The wrapper provided alongside with this repository is based on the [alsora/ros2-ORB-SLAM2](https://github.com/alsora/ros2-ORB_SLAM2/tree/f890df18983ead8cd2ae36676036d535ee52951b) project using the [alsora/ORB_SLAM2](alsora/ORB_SLAM2) modified version of ORB Slam that does not depend on pangolin.
+- To run the monocular SLAM node after installing all dependencies and building the package run.
 
 ```bash
 ros2 run ros2_orbslam mono <VOCABULARY FILE> <CONFIG_FILE>
@@ -111,13 +117,6 @@ ros2 run ros2_orbslam mono <VOCABULARY FILE> <CONFIG_FILE>
 
 - The vocabulary file can be obtained from the ORB_SLAM2 repository ( `ORB_SLAM2/Vocabulary/ORBvoc.txt`).
 - Sample configuration files can be found inside the package at `orbslam2/src/monocular/config.yaml` for monocular SLAM.
-
-
-
-### Install
-
-- To install the driver download the code from git, install dependencies using the `script/install.sh` script.
-- After all dependencies are installed build the code and and install using `colcon` as usual.
 
 
 
