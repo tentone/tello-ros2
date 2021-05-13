@@ -75,7 +75,7 @@ def generate_launch_description():
         #     remappings=[
         #         ('/camera', '/image_raw')
         #     ],
-        #     arguments=['/home/tentone/Git/tello-slam/libs/ORB_SLAM2/Vocabulary/ORBVoc.txt', '/home/tentone/Git/tello-slam/workspace/src/orbslam2/config.yaml']
+        #     arguments=['~/Git/tello-slam/libs/ORB_SLAM2/Vocabulary/ORBvoc.txt', '~/Git/tello-slam/workspace/src/orbslam2/config.yaml']
         # ),
 
         # Camera calibration node

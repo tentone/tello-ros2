@@ -8,7 +8,6 @@
 #include "Map.h"
 #include "Tracking.h"
 
-
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 
@@ -21,63 +20,76 @@ using std::placeholders::_1;
 
 class MonocularSlamNode : public rclcpp::Node
 {
-    public:
-        using ImageMsg = sensor_msgs::msg::Image;
+	public:
+		/**
+		 * Timer used to control the execution speed of the node.
+		 */
+		rclcpp::TimerBase::SharedPtr timer;
 
-        ORB_SLAM2::System* m_SLAM;
+		/**
+		 * ORB slam instance.
+		 */
+		ORB_SLAM2::System* orb_slam;
 
-        cv_bridge::CvImagePtr m_cvImPtr;
+		/**
+		 * ROS bridge used to get the image from ROS message and convert it to CV image.
+		 */
+		cv_bridge::CvImagePtr image_ptr;
 
-        rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr m_image_subscriber;
+		/**
+		 * Subscriber to receive the camera image to be processed.
+		 */
+		rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscriber_image;
 
-        MonocularSlamNode(ORB_SLAM2::System* pSLAM): Node("orbslam"), m_SLAM(pSLAM)
-        {
-            m_image_subscriber = this->create_subscription<ImageMsg>("camera", 10, std::bind(&MonocularSlamNode::grabImage, this, std::placeholders::_1));
-        }
+		MonocularSlamNode(ORB_SLAM2::System* pSLAM): Node("orbslam"), orb_slam(pSLAM)
+		{
+			subscriber_image = this->create_subscription<sensor_msgs::msg::Image>("camera", 10, std::bind(&MonocularSlamNode::grabImage, this, std::placeholders::_1));
+		
+			timer = this->create_wall_timer(100ms, std::bind(&MonocularSlamNode::loop, this));
+		}
 
-        ~MonocularSlamNode()
-        {
-            // Stop all threads
-            m_SLAM->Shutdown();
+		~MonocularSlamNode()
+		{
+			orb_slam->Shutdown();
 
-            // Save camera trajectory
-            m_SLAM->SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
-        }
+			// Save camera trajectory
+			// orb_slam->SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+		}
 
+		void loop(){}
 
-        void grabImage(const ImageMsg::SharedPtr msg)
-        {
-            // Copy the ros image message to cv::Mat.
-            try
-            {
-                m_cvImPtr = cv_bridge::toCvCopy(msg);
-            }
-            catch (cv_bridge::Exception& e)
-            {
-                RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
-                return;
-            }
-            
-            cv::Mat Tcw = m_SLAM->TrackMonocular(m_cvImPtr->image, msg->header.stamp.sec);
-        }
+		void grabImage(const sensor_msgs::msg::Image::SharedPtr msg)
+		{
+			// Copy the ros image message to cv::Mat.
+			try
+			{
+				image_ptr = cv_bridge::toCvCopy(msg);
+			}
+			catch (cv_bridge::Exception& e)
+			{
+				RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+			}
+			
+			cv::Mat tcw = orb_slam->TrackMonocular(image_ptr->image, msg->header.stamp.sec);
+		}
 };
 
 
 int main(int argc, char **argv)
 {
-    if(argc < 3)
-    {
-        std::cerr << "\nUsage: ros2 run orbslam2 mono <vocabulary> <config>" << std::endl;        
-        return 1;
-    }
+	if(argc < 3)
+	{
+		std::cerr << "\nUsage: ros2 run orbslam2 mono <vocabulary> <config>" << std::endl;        
+		return 1;
+	}
 
-    rclcpp::init(argc, argv);
+	rclcpp::init(argc, argv);
 
-    bool visualization = true;
+	bool visualization = false;
 
-    ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, visualization);
+	ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, visualization);
 
-    rclcpp::spin(std::make_shared<MonocularSlamNode>(&SLAM));
-    rclcpp::shutdown();
-    return 0;
+	rclcpp::spin(std::make_shared<MonocularSlamNode>(&SLAM));
+	rclcpp::shutdown();
+	return 0;
 }

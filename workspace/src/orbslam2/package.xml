@@ -3,10 +3,10 @@
 <package format="2">
   <name>orbslam2</name>
   <version>0.0.1</version>
-  <description>ROS 2 wrapper for the ORB SLAM2 library</description>
-  <maintainer email="alberto.soragna@gmail.com">Alberto Soragna</maintainer>
+  <description>Wrapper for the ORB SLAM2 library in ROS2.</description>
   <license>MIT</license>
-  <author>Alberto Soragna</author>
+  <maintainer email="tentone@outlook.com">tentone</maintainer>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
