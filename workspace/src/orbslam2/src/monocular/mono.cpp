@@ -85,9 +85,7 @@ int main(int argc, char **argv)
 
 	rclcpp::init(argc, argv);
 
-	bool visualization = false;
-
-	ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, visualization);
+	ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, true);
 
 	rclcpp::spin(std::make_shared<MonocularSlamNode>(&SLAM));
 	rclcpp::shutdown();
