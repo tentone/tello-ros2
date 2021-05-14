@@ -1,8 +1,8 @@
 #include "monocular-slam-node.hpp"
 
-#include<opencv2/core/core.hpp>
+#include <opencv2/core/core.hpp>
 
-#include"ORB_SLAM2/MapPoint.h"
+#include "ORB_SLAM2/MapPoint.h"
 
 using ImageMsg = sensor_msgs::msg::Image;
 using MarkerMsg = visualization_msgs::msg::Marker;

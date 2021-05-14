@@ -20,8 +20,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // malloc error using new.. try shared ptr
-    // Create SLAM system. It initializes all system threads and gets ready to process frames.
     ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR);
     auto node = std::make_shared<MonocularSlamNode>(&SLAM, argv[1], argv[2]);
 
